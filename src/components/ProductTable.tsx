@@ -35,14 +35,14 @@ interface CalcColumn {
 }
 
 const CALC_COLUMNS: CalcColumn[] = [
-  { label: "JOD Price", unitKey: "jodPrice", totalKey: "jodPriceTotal", color: "text-amber-300" },
-  { label: "Shipping", unitKey: "shipping", totalKey: "shippingTotal", color: "text-blue-300" },
-  { label: "Customs", unitKey: "customs", totalKey: "customsTotal", color: "text-purple-300" },
-  { label: "Landed Cost", unitKey: "landedCost", totalKey: "landedCostTotal", color: "text-orange-300", highlight: true },
-  { label: "Profit", unitKey: "profit", totalKey: "profitTotal", color: "text-emerald-300" },
-  { label: "Pre-Tax Price", unitKey: "preTaxPrice", totalKey: "preTaxPriceTotal", color: "text-teal-300" },
-  { label: "Tax", unitKey: "tax", totalKey: "taxTotal", color: "text-rose-300" },
-  { label: "Final Price", unitKey: "finalPrice", totalKey: "finalPriceTotal", color: "text-cyan-300", highlight: true },
+  { label: "JOD Price", unitKey: "jodPrice", totalKey: "jodPriceTotal", color: "text-amber-600" },
+  { label: "Shipping", unitKey: "shipping", totalKey: "shippingTotal", color: "text-blue-600" },
+  { label: "Customs", unitKey: "customs", totalKey: "customsTotal", color: "text-purple-600" },
+  { label: "Landed Cost", unitKey: "landedCost", totalKey: "landedCostTotal", color: "text-orange-600", highlight: true },
+  { label: "Profit", unitKey: "profit", totalKey: "profitTotal", color: "text-emerald-600" },
+  { label: "Pre-Tax Price", unitKey: "preTaxPrice", totalKey: "preTaxPriceTotal", color: "text-teal-600" },
+  { label: "Tax", unitKey: "tax", totalKey: "taxTotal", color: "text-rose-600" },
+  { label: "Final Price", unitKey: "finalPrice", totalKey: "finalPriceTotal", color: "text-cyan-600", highlight: true },
 ];
 
 export function ProductTable({ rows, constants, onChange }: Props) {
@@ -60,21 +60,21 @@ export function ProductTable({ rows, constants, onChange }: Props) {
   };
 
   return (
-    <div className="table-container rounded-xl border border-slate-700/50 bg-slate-800/30">
+    <div className="table-container rounded-xl border border-gray-200 bg-white">
       <table className="w-full border-collapse text-xs">
         <thead>
-          <tr className="border-b border-slate-700/50">
+          <tr className="border-b border-gray-200">
             {/* Fixed input columns */}
-            <th className="sticky left-0 z-10 bg-slate-800/95 px-3 py-3 text-left font-semibold text-slate-400 whitespace-nowrap min-w-[40px]">
+            <th className="sticky left-0 z-10 bg-gray-50 px-3 py-3 text-left font-semibold text-gray-500 whitespace-nowrap min-w-[40px]">
               #
             </th>
-            <th className="sticky left-10 z-10 bg-slate-800/95 px-3 py-3 text-left font-semibold text-slate-400 whitespace-nowrap min-w-[140px]">
+            <th className="sticky left-10 z-10 bg-gray-50 px-3 py-3 text-left font-semibold text-gray-500 whitespace-nowrap min-w-[140px]">
               Item Model
             </th>
-            <th className="px-3 py-3 text-right font-semibold text-slate-400 whitespace-nowrap min-w-[90px]">
+            <th className="px-3 py-3 text-right font-semibold text-gray-500 whitespace-nowrap min-w-[90px]">
               USD Price
             </th>
-            <th className="px-3 py-3 text-center font-semibold text-slate-400 whitespace-nowrap min-w-[70px]">
+            <th className="px-3 py-3 text-center font-semibold text-gray-500 whitespace-nowrap min-w-[70px]">
               Qty
             </th>
             {/* Calculated columns (each has /Unit and Total) */}
@@ -83,8 +83,8 @@ export function ProductTable({ rows, constants, onChange }: Props) {
                 key={col.label}
                 colSpan={2}
                 className={cn(
-                  "border-l border-slate-700/30 px-3 py-3 text-center font-semibold whitespace-nowrap",
-                  col.highlight ? "bg-slate-700/30 text-slate-200" : "text-slate-400"
+                  "border-l border-gray-100 px-3 py-3 text-center font-semibold whitespace-nowrap",
+                  col.highlight ? "bg-gray-100 text-gray-800" : "text-gray-500"
                 )}
               >
                 {col.label}
@@ -92,18 +92,18 @@ export function ProductTable({ rows, constants, onChange }: Props) {
             ))}
           </tr>
           {/* Sub-header for /Unit and Total */}
-          <tr className="border-b border-slate-700/50 bg-slate-900/40">
-            <th className="sticky left-0 z-10 bg-slate-900/95" />
-            <th className="sticky left-10 z-10 bg-slate-900/95" />
-            <th className="px-3 pb-2 text-right text-slate-600 text-[10px]">per unit</th>
-            <th className="px-3 pb-2 text-center text-slate-600 text-[10px]" />
+          <tr className="border-b border-gray-200 bg-gray-50">
+            <th className="sticky left-0 z-10 bg-gray-50" />
+            <th className="sticky left-10 z-10 bg-gray-50" />
+            <th className="px-3 pb-2 text-right text-gray-400 text-[10px]">per unit</th>
+            <th className="px-3 pb-2 text-center text-gray-400 text-[10px]" />
             {CALC_COLUMNS.map((col) => (
               <>
                 <th
                   key={`${col.label}-unit`}
                   className={cn(
-                    "border-l border-slate-700/20 px-3 pb-2 text-right text-[10px] text-slate-600",
-                    col.highlight && "bg-slate-700/20"
+                    "border-l border-gray-100 px-3 pb-2 text-right text-[10px] text-gray-400",
+                    col.highlight && "bg-gray-100"
                   )}
                 >
                   /unit
@@ -111,8 +111,8 @@ export function ProductTable({ rows, constants, onChange }: Props) {
                 <th
                   key={`${col.label}-total`}
                   className={cn(
-                    "px-3 pb-2 text-right text-[10px] text-slate-600",
-                    col.highlight && "bg-slate-700/20"
+                    "px-3 pb-2 text-right text-[10px] text-gray-400",
+                    col.highlight && "bg-gray-100"
                   )}
                 >
                   total
@@ -126,23 +126,23 @@ export function ProductTable({ rows, constants, onChange }: Props) {
             <tr
               key={row.id}
               className={cn(
-                "border-b border-slate-700/30 transition-colors",
-                "hover:bg-slate-700/20",
+                "border-b border-gray-100 transition-colors",
+                "hover:bg-gray-50",
                 !row.itemModel && !row.priceUsd && "opacity-60"
               )}
             >
               {/* Row number */}
-              <td className="sticky left-0 z-10 bg-slate-800/95 px-3 py-2.5 text-center font-medium text-slate-500">
+              <td className="sticky left-0 z-10 bg-white px-3 py-2.5 text-center font-medium text-gray-400">
                 {row.position}
               </td>
               {/* Item Model */}
-              <td className="sticky left-10 z-10 bg-slate-800/95 px-2 py-1.5">
+              <td className="sticky left-10 z-10 bg-white px-2 py-1.5">
                 <input
                   type="text"
                   placeholder="Item model…"
                   value={row.itemModel}
                   onChange={(e) => updateRow(i, "itemModel", e.target.value)}
-                  className="w-full rounded border border-transparent bg-transparent px-1.5 py-1 text-slate-200 placeholder-slate-600 transition-colors focus:border-slate-600 focus:bg-slate-900/60 focus:outline-none"
+                  className="w-full rounded border border-transparent bg-transparent px-1.5 py-1 text-gray-800 placeholder-gray-300 transition-colors focus:border-gray-300 focus:bg-gray-50 focus:outline-none"
                 />
               </td>
               {/* USD Price */}
@@ -156,7 +156,7 @@ export function ProductTable({ rows, constants, onChange }: Props) {
                   onChange={(e) =>
                     updateRow(i, "priceUsd", parseFloat(e.target.value) || 0)
                   }
-                  className="w-full rounded border border-transparent bg-transparent px-1.5 py-1 text-right font-mono text-slate-200 placeholder-slate-600 transition-colors focus:border-slate-600 focus:bg-slate-900/60 focus:outline-none"
+                  className="w-full rounded border border-transparent bg-transparent px-1.5 py-1 text-right font-mono text-gray-800 placeholder-gray-300 transition-colors focus:border-gray-300 focus:bg-gray-50 focus:outline-none"
                 />
               </td>
               {/* Quantity */}
@@ -169,7 +169,7 @@ export function ProductTable({ rows, constants, onChange }: Props) {
                   onChange={(e) =>
                     updateRow(i, "quantity", parseInt(e.target.value) || 1)
                   }
-                  className="w-full rounded border border-transparent bg-transparent px-1.5 py-1 text-center font-mono text-slate-200 transition-colors focus:border-slate-600 focus:bg-slate-900/60 focus:outline-none"
+                  className="w-full rounded border border-transparent bg-transparent px-1.5 py-1 text-center font-mono text-gray-800 transition-colors focus:border-gray-300 focus:bg-gray-50 focus:outline-none"
                 />
               </td>
               {/* Calculated columns */}
@@ -178,9 +178,9 @@ export function ProductTable({ rows, constants, onChange }: Props) {
                   <td
                     key={`${col.label}-unit`}
                     className={cn(
-                      "border-l border-slate-700/20 px-3 py-2.5 text-right font-mono whitespace-nowrap",
+                      "border-l border-gray-100 px-3 py-2.5 text-right font-mono whitespace-nowrap",
                       col.color,
-                      col.highlight && "bg-slate-700/10"
+                      col.highlight && "bg-gray-50"
                     )}
                   >
                     {row.priceUsd ? N((row as any)[col.unitKey]) : "—"}
@@ -188,8 +188,8 @@ export function ProductTable({ rows, constants, onChange }: Props) {
                   <td
                     key={`${col.label}-total`}
                     className={cn(
-                      "px-3 py-2.5 text-right font-mono whitespace-nowrap text-slate-400",
-                      col.highlight && "bg-slate-700/10 !text-slate-200 font-medium"
+                      "px-3 py-2.5 text-right font-mono whitespace-nowrap text-gray-500",
+                      col.highlight && "bg-gray-50 !text-gray-800 font-medium"
                     )}
                   >
                     {row.priceUsd ? N((row as any)[col.totalKey]) : "—"}
@@ -201,9 +201,9 @@ export function ProductTable({ rows, constants, onChange }: Props) {
         </tbody>
         {/* Totals row */}
         <tfoot>
-          <tr className="border-t-2 border-slate-600/50 bg-slate-800/60">
-            <td className="sticky left-0 z-10 bg-slate-800/95 px-3 py-3 text-center" />
-            <td className="sticky left-10 z-10 bg-slate-800/95 px-3 py-3 text-sm font-bold text-slate-300">
+          <tr className="border-t-2 border-gray-200 bg-gray-50">
+            <td className="sticky left-0 z-10 bg-gray-100 px-3 py-3 text-center" />
+            <td className="sticky left-10 z-10 bg-gray-100 px-3 py-3 text-sm font-bold text-gray-700">
               TOTALS
             </td>
             <td className="px-3 py-3" />
@@ -213,15 +213,15 @@ export function ProductTable({ rows, constants, onChange }: Props) {
                 <td
                   key={`total-${col.label}-unit`}
                   className={cn(
-                    "border-l border-slate-700/20 px-3 py-3",
-                    col.highlight && "bg-slate-700/20"
+                    "border-l border-gray-100 px-3 py-3",
+                    col.highlight && "bg-gray-100"
                   )}
                 />
                 <td
                   key={`total-${col.label}-total`}
                   className={cn(
                     "px-3 py-3 text-right font-mono font-bold whitespace-nowrap",
-                    col.highlight ? "bg-slate-700/20 text-cyan-300 text-sm" : "text-slate-300"
+                    col.highlight ? "bg-gray-100 text-cyan-600 text-sm" : "text-gray-700"
                   )}
                 >
                   {N((totals as any)[col.totalKey])}

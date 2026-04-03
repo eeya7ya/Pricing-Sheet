@@ -89,14 +89,14 @@ export default function DashboardPage() {
       {/* Page header */}
       <div className="mb-10 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-cyan-400">
+          <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-cyan-600">
             <BarChart3 className="h-3.5 w-3.5" />
             Manufacturers
           </div>
-          <h1 className="text-4xl font-bold text-white tracking-tight">
+          <h1 className="text-4xl font-bold text-gray-900 tracking-tight">
             Pricing Dashboard
           </h1>
-          <p className="mt-2 text-sm text-slate-400">
+          <p className="mt-2 text-sm text-gray-500">
             Manage manufacturers and their smart pricing sheets
           </p>
         </div>
@@ -116,26 +116,26 @@ export default function DashboardPage() {
                     if (e.key === "Enter") handleCreate();
                     if (e.key === "Escape") handleCancel();
                   }}
-                  className="rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 min-w-[200px]"
+                  className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-800 placeholder-gray-400 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/20 min-w-[200px]"
                 />
                 <button
                   type="button"
                   onClick={handleCreate}
                   disabled={!newName.trim() || saving}
-                  className="rounded-xl bg-cyan-500 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-cyan-400 disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40"
+                  className="rounded-xl bg-cyan-500 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-cyan-400 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
                 >
                   {saving ? "Adding…" : "Add"}
                 </button>
                 <button
                   type="button"
                   onClick={handleCancel}
-                  className="rounded-xl border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-medium text-slate-300 hover:text-white hover:bg-white/10 transition-all"
+                  className="rounded-xl border border-gray-200 bg-white px-5 py-2.5 text-sm font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-50 transition-all"
                 >
                   Cancel
                 </button>
               </div>
               {error && (
-                <p className="text-xs text-rose-400 flex items-center gap-1.5">
+                <p className="text-xs text-rose-500 flex items-center gap-1.5">
                   <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
                   {error}
                 </p>
@@ -148,8 +148,7 @@ export default function DashboardPage() {
               className={cn(
                 "flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold",
                 "bg-cyan-500 text-white transition-all hover:bg-cyan-400",
-                "shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40",
-                "focus:outline-none focus:ring-2 focus:ring-cyan-500/40"
+                "shadow-sm focus:outline-none focus:ring-2 focus:ring-cyan-400/40"
               )}
             >
               <Plus className="h-4 w-4" />
@@ -162,23 +161,23 @@ export default function DashboardPage() {
       {/* Content */}
       {loading ? (
         <div className="flex h-64 items-center justify-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/10 border-t-cyan-400" />
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-200 border-t-cyan-500" />
         </div>
       ) : items.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-white/10 bg-white/[0.02] py-24 text-center">
-          <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-2xl bg-white/5 ring-1 ring-white/10">
-            <Factory className="h-9 w-9 text-slate-400" />
+        <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-gray-200 bg-gray-50 py-24 text-center">
+          <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-2xl bg-gray-100 ring-1 ring-gray-200">
+            <Factory className="h-9 w-9 text-gray-400" />
           </div>
-          <h3 className="mb-2 text-xl font-semibold text-slate-200">
+          <h3 className="mb-2 text-xl font-semibold text-gray-700">
             No manufacturers yet
           </h3>
-          <p className="mb-7 text-sm text-slate-500">
+          <p className="mb-7 text-sm text-gray-500">
             Add your first manufacturer to get started
           </p>
           <button
             type="button"
             onClick={() => setCreating(true)}
-            className="flex items-center gap-2 rounded-xl bg-cyan-500 px-6 py-3 text-sm font-semibold text-white hover:bg-cyan-400 transition-all shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40"
+            className="flex items-center gap-2 rounded-xl bg-cyan-500 px-6 py-3 text-sm font-semibold text-white hover:bg-cyan-400 transition-all shadow-sm"
           >
             <Plus className="h-4 w-4" />
             Add Manufacturer

@@ -47,28 +47,28 @@ export function ProjectSelector({
       <button
         onClick={() => setOpen(!open)}
         className={cn(
-          "flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800 px-3.5 py-2 text-sm font-medium",
-          "transition-colors hover:border-slate-600 hover:bg-slate-700",
+          "flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-sm font-medium",
+          "transition-colors hover:border-gray-300 hover:bg-gray-50",
           "focus:outline-none focus:ring-2 focus:ring-cyan-500/30",
-          open && "border-slate-600 bg-slate-700"
+          open && "border-gray-300 bg-gray-50"
         )}
       >
-        <Folder className="h-3.5 w-3.5 text-cyan-400" />
-        <span className="text-slate-200">
+        <Folder className="h-3.5 w-3.5 text-cyan-500" />
+        <span className="text-gray-700">
           {selected ? selected.name : "Select Project…"}
         </span>
         <ChevronDown
           className={cn(
-            "h-3.5 w-3.5 text-slate-400 transition-transform",
+            "h-3.5 w-3.5 text-gray-400 transition-transform",
             open && "rotate-180"
           )}
         />
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-50 mt-1.5 min-w-[220px] rounded-xl border border-slate-700 bg-slate-800 shadow-2xl shadow-black/50">
+        <div className="absolute left-0 top-full z-50 mt-1.5 min-w-[220px] rounded-xl border border-gray-200 bg-white shadow-lg shadow-gray-200">
           {/* Create new project option */}
-          <div className="border-b border-slate-700/50 p-1">
+          <div className="border-b border-gray-100 p-1">
             {creating ? (
               <div className="flex items-center gap-2 p-2">
                 <input
@@ -84,7 +84,7 @@ export function ProjectSelector({
                       setNewName("");
                     }
                   }}
-                  className="flex-1 rounded-md border border-slate-600 bg-slate-900 px-2.5 py-1.5 text-sm text-slate-200 placeholder-slate-500 focus:border-cyan-500/60 focus:outline-none"
+                  className="flex-1 rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-sm text-gray-800 placeholder-gray-400 focus:border-cyan-400 focus:outline-none"
                 />
                 <button
                   onClick={handleCreate}
@@ -97,7 +97,7 @@ export function ProjectSelector({
             ) : (
               <button
                 onClick={() => setCreating(true)}
-                className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-cyan-400 transition-colors hover:bg-slate-700/60"
+                className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-cyan-600 transition-colors hover:bg-cyan-50"
               >
                 <Plus className="h-3.5 w-3.5" />
                 New Project…
@@ -108,7 +108,7 @@ export function ProjectSelector({
           {/* Existing projects */}
           <div className="max-h-56 overflow-y-auto p-1">
             {projects.length === 0 ? (
-              <p className="px-3 py-4 text-center text-xs text-slate-500">
+              <p className="px-3 py-4 text-center text-xs text-gray-400">
                 No projects yet
               </p>
             ) : (
@@ -122,14 +122,14 @@ export function ProjectSelector({
                   className={cn(
                     "flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-colors",
                     p.id === selectedId
-                      ? "bg-cyan-500/10 text-cyan-300"
-                      : "text-slate-300 hover:bg-slate-700/60"
+                      ? "bg-cyan-50 text-cyan-700"
+                      : "text-gray-700 hover:bg-gray-100"
                   )}
                 >
                   <Folder
                     className={cn(
                       "h-3.5 w-3.5 flex-shrink-0",
-                      p.id === selectedId ? "text-cyan-400" : "text-slate-500"
+                      p.id === selectedId ? "text-cyan-500" : "text-gray-400"
                     )}
                   />
                   {p.name}

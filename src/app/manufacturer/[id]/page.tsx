@@ -5,7 +5,6 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft, Factory, Pencil, Check, X } from "lucide-react";
 import { PricingSheet } from "@/components/PricingSheet";
-import { cn } from "@/lib/utils";
 
 interface Manufacturer {
   id: number;
@@ -58,7 +57,7 @@ export default function ManufacturerPage() {
   if (loading) {
     return (
       <div className="flex h-[calc(100vh-64px)] items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-700 border-t-cyan-400" />
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-200 border-t-cyan-500" />
       </div>
     );
   }
@@ -71,19 +70,19 @@ export default function ManufacturerPage() {
       <div className="mb-6 flex items-center gap-2 text-sm">
         <Link
           href="/"
-          className="flex items-center gap-1 text-slate-500 transition-colors hover:text-slate-300"
+          className="flex items-center gap-1 text-gray-400 transition-colors hover:text-gray-700"
         >
           <ChevronLeft className="h-3.5 w-3.5" />
           Dashboard
         </Link>
-        <span className="text-slate-700">/</span>
-        <span className="text-slate-300">{manufacturer.name}</span>
+        <span className="text-gray-300">/</span>
+        <span className="text-gray-700">{manufacturer.name}</span>
       </div>
 
       {/* Page header */}
       <div className="mb-8 flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/10 ring-1 ring-cyan-500/20">
-          <Factory className="h-5 w-5 text-cyan-400" />
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-50 ring-1 ring-cyan-200">
+          <Factory className="h-5 w-5 text-cyan-600" />
         </div>
 
         {editing ? (
@@ -100,11 +99,11 @@ export default function ManufacturerPage() {
                   setEditName(manufacturer.name);
                 }
               }}
-              className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-lg font-bold text-slate-100 focus:border-cyan-500/60 focus:outline-none"
+              className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-lg font-bold text-gray-900 focus:border-cyan-400 focus:outline-none"
             />
             <button
               onClick={handleSaveName}
-              className="rounded-md p-1.5 text-emerald-400 hover:bg-slate-800"
+              className="rounded-md p-1.5 text-emerald-600 hover:bg-emerald-50"
             >
               <Check className="h-4 w-4" />
             </button>
@@ -113,17 +112,17 @@ export default function ManufacturerPage() {
                 setEditing(false);
                 setEditName(manufacturer.name);
               }}
-              className="rounded-md p-1.5 text-slate-500 hover:bg-slate-800"
+              className="rounded-md p-1.5 text-gray-400 hover:bg-gray-100"
             >
               <X className="h-4 w-4" />
             </button>
           </div>
         ) : (
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold text-slate-100">{manufacturer.name}</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{manufacturer.name}</h1>
             <button
               onClick={() => setEditing(true)}
-              className="rounded-md p-1.5 text-slate-600 transition-colors hover:bg-slate-800 hover:text-slate-400"
+              className="rounded-md p-1.5 text-gray-300 transition-colors hover:bg-gray-100 hover:text-gray-600"
             >
               <Pencil className="h-3.5 w-3.5" />
             </button>

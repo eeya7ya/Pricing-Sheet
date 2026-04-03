@@ -25,19 +25,19 @@ interface Props {
 }
 
 const COLORS = {
-  jodPrice: "#f59e0b",
-  shipping: "#3b82f6",
-  customs: "#8b5cf6",
-  profit: "#22c55e",
-  tax: "#f43f5e",
-  finalPrice: "#06b6d4",
+  jodPrice: "#d97706",
+  shipping: "#2563eb",
+  customs: "#7c3aed",
+  profit: "#16a34a",
+  tax: "#e11d48",
+  finalPrice: "#0891b2",
 };
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-xl border border-slate-600 bg-slate-800 p-3 text-xs shadow-xl">
-      <p className="mb-2 font-semibold text-slate-200">{label}</p>
+    <div className="rounded-xl border border-gray-200 bg-white p-3 text-xs shadow-lg">
+      <p className="mb-2 font-semibold text-gray-800">{label}</p>
       {payload.map((entry: any) => (
         <div key={entry.dataKey} className="flex items-center justify-between gap-4 py-0.5">
           <span className="flex items-center gap-1.5">
@@ -45,9 +45,9 @@ const CustomTooltip = ({ active, payload, label }: any) => {
               className="inline-block h-2 w-2 rounded-full"
               style={{ background: entry.color }}
             />
-            <span className="text-slate-400">{entry.name}</span>
+            <span className="text-gray-500">{entry.name}</span>
           </span>
-          <span className="font-mono font-medium text-slate-200">
+          <span className="font-mono font-medium text-gray-800">
             {entry.value.toLocaleString("en-US", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} JOD
           </span>
         </div>
@@ -61,7 +61,7 @@ export function PricingCharts({ rows, constants }: Props) {
 
   if (activeRows.length === 0) {
     return (
-      <div className="flex h-48 items-center justify-center rounded-xl border border-dashed border-slate-700 text-slate-500 text-sm">
+      <div className="flex h-48 items-center justify-center rounded-xl border border-dashed border-gray-200 text-gray-400 text-sm">
         Enter product data above to see visualizations
       </div>
     );
@@ -111,36 +111,34 @@ export function PricingCharts({ rows, constants }: Props) {
 
   return (
     <div className="space-y-4">
-      <h3 className="text-xs font-semibold uppercase tracking-widest text-slate-400">
+      <h3 className="text-xs font-semibold uppercase tracking-widest text-gray-500">
         Visualizations
       </h3>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         {/* Cost Breakdown Stacked Bar */}
-        <div className="lg:col-span-2 rounded-xl border border-slate-700/50 bg-slate-800/30 p-4">
-          <p className="mb-3 text-xs font-medium text-slate-400">
+        <div className="lg:col-span-2 rounded-xl border border-gray-200 bg-white p-4">
+          <p className="mb-3 text-xs font-medium text-gray-500">
             Cost Breakdown per Product (JOD / unit)
           </p>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={barData} margin={{ top: 4, right: 8, left: 0, bottom: 4 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
               <XAxis
                 dataKey="name"
-                tick={{ fill: "#94a3b8", fontSize: 11 }}
-                axisLine={{ stroke: "#334155" }}
+                tick={{ fill: "#64748b", fontSize: 11 }}
+                axisLine={{ stroke: "#e2e8f0" }}
                 tickLine={false}
               />
               <YAxis
-                tick={{ fill: "#94a3b8", fontSize: 10 }}
-                axisLine={{ stroke: "#334155" }}
+                tick={{ fill: "#64748b", fontSize: 10 }}
+                axisLine={{ stroke: "#e2e8f0" }}
                 tickLine={false}
                 width={55}
                 tickFormatter={(v) => v.toLocaleString()}
               />
               <Tooltip content={<CustomTooltip />} />
-              <Legend
-                wrapperStyle={{ fontSize: 11, color: "#94a3b8" }}
-              />
+              <Legend wrapperStyle={{ fontSize: 11, color: "#64748b" }} />
               <Bar dataKey="JOD Base" stackId="a" fill={COLORS.jodPrice} radius={[0, 0, 0, 0]} />
               <Bar dataKey="Shipping" stackId="a" fill={COLORS.shipping} />
               <Bar dataKey="Customs" stackId="a" fill={COLORS.customs} />
@@ -151,8 +149,8 @@ export function PricingCharts({ rows, constants }: Props) {
         </div>
 
         {/* Pie chart — avg composition */}
-        <div className="rounded-xl border border-slate-700/50 bg-slate-800/30 p-4">
-          <p className="mb-3 text-xs font-medium text-slate-400">
+        <div className="rounded-xl border border-gray-200 bg-white p-4">
+          <p className="mb-3 text-xs font-medium text-gray-500">
             Avg Cost Composition
           </p>
           <ResponsiveContainer width="100%" height={220}>
@@ -173,15 +171,15 @@ export function PricingCharts({ rows, constants }: Props) {
               <Tooltip
                 formatter={(v: number) => [`${v.toFixed(3)} JOD`, ""]}
                 contentStyle={{
-                  background: "#1e293b",
-                  border: "1px solid #475569",
+                  background: "#ffffff",
+                  border: "1px solid #e2e8f0",
                   borderRadius: 8,
                   fontSize: 11,
                 }}
-                labelStyle={{ color: "#94a3b8" }}
+                labelStyle={{ color: "#475569" }}
               />
               <Legend
-                wrapperStyle={{ fontSize: 10, color: "#94a3b8" }}
+                wrapperStyle={{ fontSize: 10, color: "#64748b" }}
                 iconType="circle"
                 iconSize={8}
               />
@@ -191,29 +189,29 @@ export function PricingCharts({ rows, constants }: Props) {
       </div>
 
       {/* Final price comparison */}
-      <div className="rounded-xl border border-slate-700/50 bg-slate-800/30 p-4">
-        <p className="mb-3 text-xs font-medium text-slate-400">
+      <div className="rounded-xl border border-gray-200 bg-white p-4">
+        <p className="mb-3 text-xs font-medium text-gray-500">
           Final Selling Price Comparison (JOD)
         </p>
         <ResponsiveContainer width="100%" height={180}>
           <BarChart data={finalPriceData} margin={{ top: 4, right: 8, left: 0, bottom: 4 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
             <XAxis
               dataKey="name"
-              tick={{ fill: "#94a3b8", fontSize: 11 }}
-              axisLine={{ stroke: "#334155" }}
+              tick={{ fill: "#64748b", fontSize: 11 }}
+              axisLine={{ stroke: "#e2e8f0" }}
               tickLine={false}
             />
             <YAxis
-              tick={{ fill: "#94a3b8", fontSize: 10 }}
-              axisLine={{ stroke: "#334155" }}
+              tick={{ fill: "#64748b", fontSize: 10 }}
+              axisLine={{ stroke: "#e2e8f0" }}
               tickLine={false}
               width={65}
               tickFormatter={(v) => v.toLocaleString()}
             />
             <Tooltip content={<CustomTooltip />} />
-            <Legend wrapperStyle={{ fontSize: 11, color: "#94a3b8" }} />
-            <Bar dataKey="Final Price/Unit" fill="#06b6d4" radius={[4, 4, 0, 0]} />
+            <Legend wrapperStyle={{ fontSize: 11, color: "#64748b" }} />
+            <Bar dataKey="Final Price/Unit" fill="#0891b2" radius={[4, 4, 0, 0]} />
             <Bar dataKey="Total Revenue" fill="#0284c7" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
