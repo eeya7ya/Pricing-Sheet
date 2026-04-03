@@ -105,15 +105,15 @@ export function ProductTable({ rows, constants, onChange }: Props) {
   };
 
   const ColActions = ({ field }: { field: InputField }) => (
-    <span className="ml-1.5 inline-flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+    <span className="ml-1.5 inline-flex gap-0.5">
       <button
         title="Copy column"
         onClick={() => copyColumn(field)}
         className={cn(
           "rounded p-0.5 transition-colors",
           copiedCol === field
-            ? "text-emerald-600"
-            : "text-gray-400 hover:text-gray-600 hover:bg-gray-200"
+            ? "text-emerald-500"
+            : "text-gray-400 hover:text-gray-700 hover:bg-gray-200"
         )}
       >
         <Copy size={11} />
@@ -121,7 +121,7 @@ export function ProductTable({ rows, constants, onChange }: Props) {
       <button
         title="Paste column"
         onClick={() => pasteColumn(field)}
-        className="rounded p-0.5 text-gray-400 hover:text-gray-600 hover:bg-gray-200 transition-colors"
+        className="rounded p-0.5 text-gray-400 hover:text-gray-700 hover:bg-gray-200 transition-colors"
       >
         <ClipboardPaste size={11} />
       </button>
@@ -137,15 +137,15 @@ export function ProductTable({ rows, constants, onChange }: Props) {
             <th className="sticky left-0 z-10 bg-gray-50 px-3 py-3 text-left font-semibold text-gray-500 whitespace-nowrap min-w-[40px]">
               #
             </th>
-            <th className="group sticky left-10 z-10 bg-gray-50 px-3 py-3 text-left font-semibold text-gray-500 whitespace-nowrap min-w-[140px]">
+            <th className="sticky left-10 z-10 bg-gray-50 px-3 py-3 text-left font-semibold text-gray-500 whitespace-nowrap min-w-[140px]">
               Item Model
               <ColActions field="itemModel" />
             </th>
-            <th className="group px-3 py-3 text-right font-semibold text-gray-500 whitespace-nowrap min-w-[90px]">
+            <th className="px-3 py-3 text-right font-semibold text-gray-500 whitespace-nowrap min-w-[90px]">
               USD Price
               <ColActions field="priceUsd" />
             </th>
-            <th className="group px-3 py-3 text-center font-semibold text-gray-500 whitespace-nowrap min-w-[70px]">
+            <th className="px-3 py-3 text-center font-semibold text-gray-500 whitespace-nowrap min-w-[70px]">
               Qty
               <ColActions field="quantity" />
             </th>
