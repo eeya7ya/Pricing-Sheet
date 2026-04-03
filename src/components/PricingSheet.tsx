@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
-import { RefreshCw, Plus, Trash2, Download, FileSpreadsheet, Printer } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Save, Plus, Trash2, Download, FileSpreadsheet, Printer } from "lucide-react";
 import { ProjectSelector } from "./ProjectSelector";
 import { ConstantsPanel } from "./ConstantsPanel";
 import { ProductTable } from "./ProductTable";
@@ -12,6 +12,7 @@ import { exportToCsv, exportToPrint } from "@/lib/export";
 interface Project {
   id: number;
   name: string;
+  date?: string | null;
 }
 
 interface ProductRow {
@@ -38,7 +39,10 @@ export function PricingSheet({ manufacturerId, manufacturerName }: Props) {
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Editable project meta
+  const [projectName, setProjectName] = useState("");
+  const [projectDate, setProjectDate] = useState("");
 
   // Load projects list
   const loadProjects = useCallback(async () => {
@@ -67,6 +71,11 @@ export function PricingSheet({ manufacturerId, manufacturerName }: Props) {
         if (!res.ok) return;
         const data = await res.json();
 
+        if (data.project) {
+          setProjectName(data.project.name ?? "");
+          setProjectDate(data.project.date ?? "");
+        }
+
         if (data.constants) {
           setConstants({
             currencyRate: parseFloat(data.constants.currencyRate),
@@ -92,50 +101,50 @@ export function PricingSheet({ manufacturerId, manufacturerName }: Props) {
         }
       } finally {
         setLoading(false);
+        setSavedAt(null);
       }
     };
 
     load();
   }, [selectedProjectId]);
 
-  // Auto-save with debounce
-  const scheduleSave = useCallback(() => {
-    if (!selectedProjectId) return;
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    saveTimerRef.current = setTimeout(async () => {
-      setSaving(true);
-      try {
-        const res = await fetch(`/api/projects/${selectedProjectId}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ constants, productLines: rows }),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          // Sync real DB ids back onto local rows so subsequent saves use real ids
-          if (data.productLines) {
-            setRows((prev) =>
-              prev.map((r, i) =>
-                data.productLines[i] ? { ...r, id: data.productLines[i].id, position: data.productLines[i].position } : r
-              )
-            );
-          }
-          setSavedAt(new Date());
+  // Manual save
+  const handleSave = async () => {
+    if (!selectedProjectId || saving) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/projects/${selectedProjectId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: projectName,
+          date: projectDate || null,
+          constants,
+          productLines: rows,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        // Sync real DB ids back onto local rows
+        if (data.productLines) {
+          setRows((prev) =>
+            prev.map((r, i) =>
+              data.productLines[i] ? { ...r, id: data.productLines[i].id, position: data.productLines[i].position } : r
+            )
+          );
         }
-      } finally {
-        setSaving(false);
+        // Update project name in the list
+        setProjects((prev) =>
+          prev.map((p) =>
+            p.id === selectedProjectId ? { ...p, name: projectName, date: projectDate || null } : p
+          )
+        );
+        setSavedAt(new Date());
       }
-    }, 800);
-  }, [selectedProjectId, constants, rows]);
-
-  useEffect(() => {
-    if (!loading && selectedProjectId) {
-      scheduleSave();
+    } finally {
+      setSaving(false);
     }
-    return () => {
-      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    };
-  }, [constants, rows]);
+  };
 
   const handleCreateProject = async (name: string) => {
     const res = await fetch("/api/projects", {
@@ -172,13 +181,13 @@ export function PricingSheet({ manufacturerId, manufacturerName }: Props) {
 
   const handleExportCsv = () => {
     if (!selectedProject || rows.length === 0) return;
-    exportToCsv(rows, constants, selectedProject.name, manufacturerName);
+    exportToCsv(rows, constants, projectName || selectedProject.name, manufacturerName);
     setShowExportMenu(false);
   };
 
   const handleExportPrint = () => {
     if (!selectedProject || rows.length === 0) return;
-    exportToPrint(rows, constants, selectedProject.name, manufacturerName);
+    exportToPrint(rows, constants, projectName || selectedProject.name, manufacturerName);
     setShowExportMenu(false);
   };
 
@@ -186,62 +195,91 @@ export function PricingSheet({ manufacturerId, manufacturerName }: Props) {
     <div className="space-y-5">
       {/* Header row */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <ProjectSelector
             projects={projects}
             selectedId={selectedProjectId}
             onSelect={setSelectedProjectId}
             onCreateNew={handleCreateProject}
           />
-          {saving && (
-            <span className="flex items-center gap-1.5 text-xs text-gray-400">
-              <RefreshCw className="h-3 w-3 animate-spin" />
-              Saving…
-            </span>
+
+          {/* Editable project name + date */}
+          {selectedProjectId && !loading && (
+            <>
+              <input
+                type="text"
+                value={projectName}
+                onChange={(e) => setProjectName(e.target.value)}
+                placeholder="Project name…"
+                className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 placeholder-gray-400 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
+              />
+              <input
+                type="date"
+                value={projectDate}
+                onChange={(e) => setProjectDate(e.target.value)}
+                className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
+              />
+            </>
           )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          {/* Save status */}
           {!saving && savedAt && (
             <span className="text-xs text-gray-400">
               Saved {savedAt.toLocaleTimeString()}
             </span>
           )}
-        </div>
 
-        {/* Export button */}
-        {selectedProjectId && rows.length > 0 && (
-          <div className="relative">
+          {/* Manual Save button */}
+          {selectedProjectId && !loading && (
             <button
-              onClick={() => setShowExportMenu((v) => !v)}
-              className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:border-cyan-300 hover:bg-cyan-50 hover:text-cyan-700"
+              onClick={handleSave}
+              disabled={saving}
+              className="flex items-center gap-1.5 rounded-lg bg-cyan-500 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-cyan-400 disabled:opacity-60"
             >
-              <Download className="h-3.5 w-3.5" />
-              Export
+              <Save className="h-3.5 w-3.5" />
+              {saving ? "Saving…" : "Save"}
             </button>
-            {showExportMenu && (
-              <>
-                <div
-                  className="fixed inset-0 z-10"
-                  onClick={() => setShowExportMenu(false)}
-                />
-                <div className="absolute right-0 z-20 mt-1 w-48 rounded-xl border border-gray-200 bg-white py-1 shadow-lg">
-                  <button
-                    onClick={handleExportPrint}
-                    className="flex w-full items-center gap-2.5 px-4 py-2.5 text-xs text-gray-700 hover:bg-gray-50"
-                  >
-                    <Printer className="h-3.5 w-3.5 text-gray-400" />
-                    Print / Save as PDF
-                  </button>
-                  <button
-                    onClick={handleExportCsv}
-                    className="flex w-full items-center gap-2.5 px-4 py-2.5 text-xs text-gray-700 hover:bg-gray-50"
-                  >
-                    <FileSpreadsheet className="h-3.5 w-3.5 text-gray-400" />
-                    Export as CSV
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        )}
+          )}
+
+          {/* Export button */}
+          {selectedProjectId && rows.length > 0 && (
+            <div className="relative">
+              <button
+                onClick={() => setShowExportMenu((v) => !v)}
+                className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:border-cyan-300 hover:bg-cyan-50 hover:text-cyan-700"
+              >
+                <Download className="h-3.5 w-3.5" />
+                Export
+              </button>
+              {showExportMenu && (
+                <>
+                  <div
+                    className="fixed inset-0 z-10"
+                    onClick={() => setShowExportMenu(false)}
+                  />
+                  <div className="absolute right-0 z-20 mt-1 w-48 rounded-xl border border-gray-200 bg-white py-1 shadow-lg">
+                    <button
+                      onClick={handleExportPrint}
+                      className="flex w-full items-center gap-2.5 px-4 py-2.5 text-xs text-gray-700 hover:bg-gray-50"
+                    >
+                      <Printer className="h-3.5 w-3.5 text-gray-400" />
+                      Print / Save as PDF
+                    </button>
+                    <button
+                      onClick={handleExportCsv}
+                      className="flex w-full items-center gap-2.5 px-4 py-2.5 text-xs text-gray-700 hover:bg-gray-50"
+                    >
+                      <FileSpreadsheet className="h-3.5 w-3.5 text-gray-400" />
+                      Export as CSV
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {!selectedProjectId ? (

@@ -42,11 +42,14 @@ export async function PUT(
     const { id } = await params;
     const body = await req.json();
 
-    // Update project name if provided
-    if (body.name !== undefined) {
+    // Update project name/date if provided
+    if (body.name !== undefined || body.date !== undefined) {
+      const patch: Record<string, string> = {};
+      if (body.name !== undefined) patch.name = body.name.trim();
+      if (body.date !== undefined) patch.date = body.date ?? null;
       await db
         .update(projects)
-        .set({ name: body.name.trim() })
+        .set(patch)
         .where(eq(projects.id, parseInt(id)));
     }
 
