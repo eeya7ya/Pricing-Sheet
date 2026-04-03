@@ -34,6 +34,7 @@ interface CalcColumn {
   totalKey: string;
   color: string;
   highlight?: boolean;
+  copyable?: boolean;
 }
 
 const CALC_COLUMNS: CalcColumn[] = [
@@ -42,9 +43,9 @@ const CALC_COLUMNS: CalcColumn[] = [
   { label: "Customs", unitKey: "customs", totalKey: "customsTotal", color: "text-purple-600" },
   { label: "Landed Cost", unitKey: "landedCost", totalKey: "landedCostTotal", color: "text-orange-600", highlight: true },
   { label: "Profit", unitKey: "profit", totalKey: "profitTotal", color: "text-emerald-600" },
-  { label: "Pre-Tax Price", unitKey: "preTaxPrice", totalKey: "preTaxPriceTotal", color: "text-teal-600" },
+  { label: "Pre-Tax Price", unitKey: "preTaxPrice", totalKey: "preTaxPriceTotal", color: "text-teal-600", copyable: true },
   { label: "Tax", unitKey: "tax", totalKey: "taxTotal", color: "text-rose-600" },
-  { label: "Final Price", unitKey: "finalPrice", totalKey: "finalPriceTotal", color: "text-cyan-600", highlight: true },
+  { label: "Final Price", unitKey: "finalPrice", totalKey: "finalPriceTotal", color: "text-cyan-600", highlight: true, copyable: true },
 ];
 
 type InputField = "itemModel" | "priceUsd" | "quantity";
@@ -52,6 +53,7 @@ type OverrideField = "shippingOverride" | "customsOverride";
 
 export function ProductTable({ rows, constants, onChange }: Props) {
   const [copiedCol, setCopiedCol] = useState<InputField | null>(null);
+  const [copiedCalcCol, setCopiedCalcCol] = useState<string | null>(null);
 
   const calculated = rows.map((r) => ({
     ...r,
@@ -83,6 +85,13 @@ export function ProductTable({ rows, constants, onChange }: Props) {
     await navigator.clipboard.writeText(values);
     setCopiedCol(field);
     setTimeout(() => setCopiedCol(null), 1500);
+  };
+
+  const copyCalcColumn = async (unitKey: string) => {
+    const values = calculated.map((r) => N((r as any)[unitKey])).join("\n");
+    await navigator.clipboard.writeText(values);
+    setCopiedCalcCol(unitKey);
+    setTimeout(() => setCopiedCalcCol(null), 1500);
   };
 
   const pasteColumn = async (field: InputField) => {
@@ -174,11 +183,27 @@ export function ProductTable({ rows, constants, onChange }: Props) {
                 key={col.label}
                 colSpan={2}
                 className={cn(
-                  "border-l border-gray-100 px-3 py-3 text-center font-semibold whitespace-nowrap",
+                  "group border-l border-gray-100 px-3 py-3 text-center font-semibold whitespace-nowrap",
                   col.highlight ? "bg-gray-100 text-gray-800" : "text-gray-500"
                 )}
               >
                 {col.label}
+                {col.copyable && (
+                  <span className="ml-1.5 inline-flex opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      title="Copy column (/unit values)"
+                      onClick={() => copyCalcColumn(col.unitKey)}
+                      className={cn(
+                        "rounded p-0.5 transition-colors",
+                        copiedCalcCol === col.unitKey
+                          ? "text-emerald-600"
+                          : "text-gray-400 hover:text-gray-600 hover:bg-gray-200"
+                      )}
+                    >
+                      <Copy size={11} />
+                    </button>
+                  </span>
+                )}
               </th>
             ))}
           </tr>
