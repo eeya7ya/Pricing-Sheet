@@ -10,6 +10,8 @@ export interface ProductInput {
   itemModel: string;
   priceUsd: number;
   quantity: number;
+  shippingOverride?: number | null;
+  customsOverride?: number | null;
 }
 
 export interface CalculatedRow extends ProductInput {
@@ -17,6 +19,8 @@ export interface CalculatedRow extends ProductInput {
   jodPrice: number;
   shipping: number;
   customs: number;
+  shippingIsOverridden: boolean;
+  customsIsOverridden: boolean;
   landedCost: number;
   profit: number;
   preTaxPrice: number;
@@ -52,9 +56,12 @@ export function calculateRow(
   const { currencyRate, shippingRate, customsRate, profitMargin, taxRate } =
     constants;
 
+  const { shippingOverride, customsOverride } = input;
   const jodPrice = priceUsd * currencyRate;
-  const shipping = jodPrice * shippingRate;
-  const customs = shipping * customsRate;
+  const shippingIsOverridden = shippingOverride != null;
+  const customsIsOverridden = customsOverride != null;
+  const shipping = shippingIsOverridden ? shippingOverride! : jodPrice * shippingRate;
+  const customs = customsIsOverridden ? customsOverride! : jodPrice * customsRate;
   const landedCost = jodPrice + shipping + customs;
   const profit = landedCost * profitMargin;
   const preTaxPrice = landedCost + profit;
@@ -66,6 +73,8 @@ export function calculateRow(
     jodPrice,
     shipping,
     customs,
+    shippingIsOverridden,
+    customsIsOverridden,
     landedCost,
     profit,
     preTaxPrice,
