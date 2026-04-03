@@ -52,6 +52,8 @@ type OverrideField = "shippingOverride" | "customsOverride";
 
 export function ProductTable({ rows, constants, onChange }: Props) {
   const [copiedCol, setCopiedCol] = useState<InputField | null>(null);
+  const [pasteModal, setPasteModal] = useState<{ field: InputField } | null>(null);
+  const [pasteText, setPasteText] = useState("");
 
   const calculated = rows.map((r) => ({
     ...r,
@@ -85,8 +87,7 @@ export function ProductTable({ rows, constants, onChange }: Props) {
     setTimeout(() => setCopiedCol(null), 1500);
   };
 
-  const pasteColumn = async (field: InputField) => {
-    const text = await navigator.clipboard.readText();
+  const applyPastedText = (field: InputField, text: string) => {
     const values = text
       .split(/\r?\n/)
       .map((v) => v.trim())
@@ -98,8 +99,8 @@ export function ProductTable({ rows, constants, onChange }: Props) {
 
     values.forEach((val, i) => {
       let parsed: string | number = val;
-      if (field === "priceUsd") parsed = parseFloat(val) || 0;
-      if (field === "quantity") parsed = parseInt(val) || 1;
+      if (field === "priceUsd") parsed = parseFloat(val.replace(/[^0-9.-]/g, "")) || 0;
+      if (field === "quantity") parsed = parseInt(val.replace(/[^0-9]/g, ""), 10) || 1;
 
       if (i < updated.length) {
         updated[i] = { ...updated[i], [field]: parsed };
@@ -115,6 +116,24 @@ export function ProductTable({ rows, constants, onChange }: Props) {
     });
 
     onChange(updated);
+  };
+
+  const pasteColumn = async (field: InputField) => {
+    try {
+      const text = await navigator.clipboard.readText();
+      applyPastedText(field, text);
+    } catch {
+      // Clipboard API blocked — fall back to manual paste modal
+      setPasteText("");
+      setPasteModal({ field });
+    }
+  };
+
+  const handleModalPaste = () => {
+    if (!pasteModal) return;
+    applyPastedText(pasteModal.field, pasteText);
+    setPasteModal(null);
+    setPasteText("");
   };
 
   const ColActions = ({ field }: { field: InputField }) => (
@@ -142,6 +161,42 @@ export function ProductTable({ rows, constants, onChange }: Props) {
   );
 
   return (
+    <>
+    {pasteModal && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+        <div className="w-80 rounded-2xl border border-gray-200 bg-white p-5 shadow-xl">
+          <h3 className="mb-1 text-sm font-semibold text-gray-800">Paste column values</h3>
+          <p className="mb-3 text-xs text-gray-500">
+            Paste your values below — one per line.
+          </p>
+          <textarea
+            autoFocus
+            className="h-36 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-mono text-gray-800 focus:border-cyan-400 focus:outline-none resize-none"
+            placeholder={"100\n250\n80"}
+            value={pasteText}
+            onChange={(e) => setPasteText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) handleModalPaste();
+              if (e.key === "Escape") { setPasteModal(null); setPasteText(""); }
+            }}
+          />
+          <div className="mt-3 flex justify-end gap-2">
+            <button
+              onClick={() => { setPasteModal(null); setPasteText(""); }}
+              className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleModalPaste}
+              className="rounded-lg bg-cyan-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-cyan-400"
+            >
+              Apply
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
     <div className="table-container rounded-xl border border-gray-200 bg-white">
       <table className="w-full border-collapse text-xs">
         <thead>
@@ -389,5 +444,6 @@ export function ProductTable({ rows, constants, onChange }: Props) {
         </tfoot>
       </table>
     </div>
+    </>
   );
 }

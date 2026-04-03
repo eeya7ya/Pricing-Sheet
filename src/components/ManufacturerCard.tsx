@@ -51,7 +51,7 @@ export function ManufacturerCard({ id, name, projectCount, onDelete }: Props) {
 
       {/* Open link */}
       <Link
-        href={`/manufacturer/${id}`}
+        href={`/manufacturer/${id}-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}`}
         className={cn(
           "flex items-center justify-between rounded-xl px-3.5 py-2.5",
           "border border-gray-200 bg-gray-50",

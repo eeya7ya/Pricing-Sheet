@@ -14,7 +14,8 @@ interface Manufacturer {
 export default function ManufacturerPage() {
   const params = useParams();
   const router = useRouter();
-  const id = parseInt(params.id as string);
+  // slug format: "123-manufacturer-name" — ID is always the first segment
+  const id = parseInt((params.slug as string).split("-")[0]);
 
   const [manufacturer, setManufacturer] = useState<Manufacturer | null>(null);
   const [loading, setLoading] = useState(true);
