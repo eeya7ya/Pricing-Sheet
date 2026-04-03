@@ -105,12 +105,23 @@ export function PricingSheet({ manufacturerId, manufacturerName }: Props) {
     saveTimerRef.current = setTimeout(async () => {
       setSaving(true);
       try {
-        await fetch(`/api/projects/${selectedProjectId}`, {
+        const res = await fetch(`/api/projects/${selectedProjectId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ constants, productLines: rows }),
         });
-        setSavedAt(new Date());
+        if (res.ok) {
+          const data = await res.json();
+          // Sync real DB ids back onto local rows so subsequent saves use real ids
+          if (data.productLines) {
+            setRows((prev) =>
+              prev.map((r, i) =>
+                data.productLines[i] ? { ...r, id: data.productLines[i].id, position: data.productLines[i].position } : r
+              )
+            );
+          }
+          setSavedAt(new Date());
+        }
       } finally {
         setSaving(false);
       }
