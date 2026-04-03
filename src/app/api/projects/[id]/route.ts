@@ -64,25 +64,31 @@ export async function PUT(
         .where(eq(projectConstants.projectId, parseInt(id)));
     }
 
-    // Update product lines if provided
+    // Update product lines if provided — delete all and re-insert so adds/removes are
+    // both handled correctly (avoids stale fake client-side IDs from new rows).
     if (body.productLines !== undefined) {
-      for (const line of body.productLines) {
-        await db
-          .update(productLines)
-          .set({
+      await db.delete(productLines).where(eq(productLines.projectId, parseInt(id)));
+      if (body.productLines.length > 0) {
+        await db.insert(productLines).values(
+          body.productLines.map((line: any, idx: number) => ({
+            projectId: parseInt(id),
+            position: idx + 1,
             itemModel: line.itemModel ?? "",
             priceUsd: String(line.priceUsd ?? 0),
             quantity: line.quantity ?? 1,
             shippingOverride: line.shippingOverride != null ? String(line.shippingOverride) : null,
             customsOverride: line.customsOverride != null ? String(line.customsOverride) : null,
-          })
-          .where(
-            eq(productLines.id, line.id)
-          );
+          }))
+        );
       }
     }
 
-    return NextResponse.json({ success: true });
+    // Return fresh product lines so the client can sync real DB ids
+    const freshLines = await db.query.productLines.findMany({
+      where: (l, { eq }) => eq(l.projectId, parseInt(id)),
+      orderBy: (l, { asc }) => [asc(l.position)],
+    });
+    return NextResponse.json({ success: true, productLines: freshLines });
   } catch (error) {
     console.error(error);
     return NextResponse.json({ error: "Failed to update project" }, { status: 500 });
