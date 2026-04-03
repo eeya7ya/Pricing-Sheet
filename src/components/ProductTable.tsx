@@ -98,8 +98,14 @@ export function ProductTable({ rows, constants, onChange }: Props) {
 
     values.forEach((val, i) => {
       let parsed: string | number = val;
-      if (field === "priceUsd") parsed = parseFloat(val) || 0;
-      if (field === "quantity") parsed = parseInt(val) || 1;
+      if (field === "priceUsd") {
+        const clean = val.replace(/[^0-9.]/g, "");
+        parsed = parseFloat(clean) || 0;
+      }
+      if (field === "quantity") {
+        const clean = val.replace(/[^0-9]/g, "");
+        parsed = parseInt(clean) || 1;
+      }
 
       if (i < updated.length) {
         updated[i] = { ...updated[i], [field]: parsed };
@@ -241,6 +247,12 @@ export function ProductTable({ rows, constants, onChange }: Props) {
                   onChange={(e) =>
                     updateRow(i, "priceUsd", parseFloat(e.target.value) || 0)
                   }
+                  onPaste={(e) => {
+                    e.preventDefault();
+                    const raw = e.clipboardData.getData("text");
+                    const clean = raw.replace(/[^0-9.]/g, "");
+                    updateRow(i, "priceUsd", parseFloat(clean) || 0);
+                  }}
                   className="w-full rounded border border-transparent bg-transparent px-1.5 py-1 text-right font-mono text-gray-800 placeholder-gray-300 transition-colors focus:border-gray-300 focus:bg-gray-50 focus:outline-none"
                 />
               </td>
@@ -254,6 +266,12 @@ export function ProductTable({ rows, constants, onChange }: Props) {
                   onChange={(e) =>
                     updateRow(i, "quantity", parseInt(e.target.value) || 1)
                   }
+                  onPaste={(e) => {
+                    e.preventDefault();
+                    const raw = e.clipboardData.getData("text");
+                    const clean = raw.replace(/[^0-9]/g, "");
+                    updateRow(i, "quantity", parseInt(clean) || 1);
+                  }}
                   className="w-full rounded border border-transparent bg-transparent px-1.5 py-1 text-center font-mono text-gray-800 transition-colors focus:border-gray-300 focus:bg-gray-50 focus:outline-none"
                 />
               </td>
