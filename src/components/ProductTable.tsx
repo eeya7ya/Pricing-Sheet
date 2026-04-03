@@ -79,7 +79,8 @@ export function ProductTable({ rows, constants, onChange }: Props) {
   };
 
   const copyColumn = async (field: InputField) => {
-    const values = rows.map((r) => String(r[field])).join("\n");
+    const filledRows = rows.filter((r) => r.itemModel !== "");
+    const values = filledRows.map((r) => String(r[field])).join("\n");
     await navigator.clipboard.writeText(values);
     setCopiedCol(field);
     setTimeout(() => setCopiedCol(null), 1500);
