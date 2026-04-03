@@ -241,6 +241,12 @@ export function ProductTable({ rows, constants, onChange }: Props) {
                   onChange={(e) =>
                     updateRow(i, "priceUsd", parseFloat(e.target.value) || 0)
                   }
+                  onPaste={(e) => {
+                    e.preventDefault();
+                    const text = e.clipboardData.getData("text");
+                    const parsed = parseFloat(text.replace(/[^0-9.-]/g, "")) || 0;
+                    updateRow(i, "priceUsd", parsed);
+                  }}
                   className="w-full rounded border border-transparent bg-transparent px-1.5 py-1 text-right font-mono text-gray-800 placeholder-gray-300 transition-colors focus:border-gray-300 focus:bg-gray-50 focus:outline-none"
                 />
               </td>
@@ -254,6 +260,12 @@ export function ProductTable({ rows, constants, onChange }: Props) {
                   onChange={(e) =>
                     updateRow(i, "quantity", parseInt(e.target.value) || 1)
                   }
+                  onPaste={(e) => {
+                    e.preventDefault();
+                    const text = e.clipboardData.getData("text");
+                    const parsed = parseInt(text.replace(/[^0-9]/g, ""), 10) || 1;
+                    updateRow(i, "quantity", parsed);
+                  }}
                   className="w-full rounded border border-transparent bg-transparent px-1.5 py-1 text-center font-mono text-gray-800 transition-colors focus:border-gray-300 focus:bg-gray-50 focus:outline-none"
                 />
               </td>
