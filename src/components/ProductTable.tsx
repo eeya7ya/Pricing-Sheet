@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   calculateRow,
   calculateTotals,
@@ -7,6 +8,7 @@ import {
   type ProductInput,
 } from "@/lib/calculations";
 import { cn } from "@/lib/utils";
+import { Copy, ClipboardPaste } from "lucide-react";
 
 interface Row extends ProductInput {
   id: number;
@@ -45,7 +47,11 @@ const CALC_COLUMNS: CalcColumn[] = [
   { label: "Final Price", unitKey: "finalPrice", totalKey: "finalPriceTotal", color: "text-cyan-600", highlight: true },
 ];
 
+type InputField = "itemModel" | "priceUsd" | "quantity";
+
 export function ProductTable({ rows, constants, onChange }: Props) {
+  const [copiedCol, setCopiedCol] = useState<InputField | null>(null);
+
   const calculated = rows.map((r) => ({
     ...r,
     ...calculateRow(r, constants),
@@ -59,6 +65,69 @@ export function ProductTable({ rows, constants, onChange }: Props) {
     onChange(updated);
   };
 
+  const copyColumn = async (field: InputField) => {
+    const values = rows.map((r) => String(r[field])).join("\n");
+    await navigator.clipboard.writeText(values);
+    setCopiedCol(field);
+    setTimeout(() => setCopiedCol(null), 1500);
+  };
+
+  const pasteColumn = async (field: InputField) => {
+    const text = await navigator.clipboard.readText();
+    const values = text
+      .split(/\r?\n/)
+      .map((v) => v.trim())
+      .filter((v) => v !== "");
+
+    if (values.length === 0) return;
+
+    const updated = [...rows];
+
+    values.forEach((val, i) => {
+      let parsed: string | number = val;
+      if (field === "priceUsd") parsed = parseFloat(val) || 0;
+      if (field === "quantity") parsed = parseInt(val) || 1;
+
+      if (i < updated.length) {
+        updated[i] = { ...updated[i], [field]: parsed };
+      } else {
+        updated.push({
+          id: Date.now() + i,
+          position: updated.length + 1,
+          itemModel: field === "itemModel" ? String(parsed) : "",
+          priceUsd: field === "priceUsd" ? Number(parsed) : 0,
+          quantity: field === "quantity" ? Number(parsed) : 1,
+        });
+      }
+    });
+
+    onChange(updated);
+  };
+
+  const ColActions = ({ field }: { field: InputField }) => (
+    <span className="ml-1.5 inline-flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+      <button
+        title="Copy column"
+        onClick={() => copyColumn(field)}
+        className={cn(
+          "rounded p-0.5 transition-colors",
+          copiedCol === field
+            ? "text-emerald-600"
+            : "text-gray-400 hover:text-gray-600 hover:bg-gray-200"
+        )}
+      >
+        <Copy size={11} />
+      </button>
+      <button
+        title="Paste column"
+        onClick={() => pasteColumn(field)}
+        className="rounded p-0.5 text-gray-400 hover:text-gray-600 hover:bg-gray-200 transition-colors"
+      >
+        <ClipboardPaste size={11} />
+      </button>
+    </span>
+  );
+
   return (
     <div className="table-container rounded-xl border border-gray-200 bg-white">
       <table className="w-full border-collapse text-xs">
@@ -68,14 +137,17 @@ export function ProductTable({ rows, constants, onChange }: Props) {
             <th className="sticky left-0 z-10 bg-gray-50 px-3 py-3 text-left font-semibold text-gray-500 whitespace-nowrap min-w-[40px]">
               #
             </th>
-            <th className="sticky left-10 z-10 bg-gray-50 px-3 py-3 text-left font-semibold text-gray-500 whitespace-nowrap min-w-[140px]">
+            <th className="group sticky left-10 z-10 bg-gray-50 px-3 py-3 text-left font-semibold text-gray-500 whitespace-nowrap min-w-[140px]">
               Item Model
+              <ColActions field="itemModel" />
             </th>
-            <th className="px-3 py-3 text-right font-semibold text-gray-500 whitespace-nowrap min-w-[90px]">
+            <th className="group px-3 py-3 text-right font-semibold text-gray-500 whitespace-nowrap min-w-[90px]">
               USD Price
+              <ColActions field="priceUsd" />
             </th>
-            <th className="px-3 py-3 text-center font-semibold text-gray-500 whitespace-nowrap min-w-[70px]">
+            <th className="group px-3 py-3 text-center font-semibold text-gray-500 whitespace-nowrap min-w-[70px]">
               Qty
+              <ColActions field="quantity" />
             </th>
             {/* Calculated columns (each has /Unit and Total) */}
             {CALC_COLUMNS.map((col) => (
