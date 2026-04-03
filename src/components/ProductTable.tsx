@@ -87,10 +87,10 @@ export function ProductTable({ rows, constants, onChange }: Props) {
     setTimeout(() => setCopiedCol(null), 1500);
   };
 
-  const copyCalcColumn = async (unitKey: string) => {
-    const values = calculated.map((r) => N((r as any)[unitKey])).join("\n");
+  const copyCalcColumn = async (key: string) => {
+    const values = calculated.map((r) => N((r as any)[key])).join("\n");
     await navigator.clipboard.writeText(values);
-    setCopiedCalcCol(unitKey);
+    setCopiedCalcCol(key);
     setTimeout(() => setCopiedCalcCol(null), 1500);
   };
 
@@ -183,27 +183,11 @@ export function ProductTable({ rows, constants, onChange }: Props) {
                 key={col.label}
                 colSpan={2}
                 className={cn(
-                  "group border-l border-gray-100 px-3 py-3 text-center font-semibold whitespace-nowrap",
+                  "border-l border-gray-100 px-3 py-3 text-center font-semibold whitespace-nowrap",
                   col.highlight ? "bg-gray-100 text-gray-800" : "text-gray-500"
                 )}
               >
                 {col.label}
-                {col.copyable && (
-                  <span className="ml-1.5 inline-flex opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      title="Copy column (/unit values)"
-                      onClick={() => copyCalcColumn(col.unitKey)}
-                      className={cn(
-                        "rounded p-0.5 transition-colors",
-                        copiedCalcCol === col.unitKey
-                          ? "text-emerald-600"
-                          : "text-gray-400 hover:text-gray-600 hover:bg-gray-200"
-                      )}
-                    >
-                      <Copy size={11} />
-                    </button>
-                  </span>
-                )}
               </th>
             ))}
           </tr>
@@ -218,20 +202,48 @@ export function ProductTable({ rows, constants, onChange }: Props) {
                 <th
                   key={`${col.label}-unit`}
                   className={cn(
-                    "border-l border-gray-100 px-3 pb-2 text-right text-[10px] text-gray-400",
+                    "group border-l border-gray-100 px-3 pb-2 text-right text-[10px] text-gray-400",
                     col.highlight && "bg-gray-100"
                   )}
                 >
                   /unit
+                  {col.copyable && (
+                    <button
+                      title={`Copy ${col.label} /unit values`}
+                      onClick={() => copyCalcColumn(col.unitKey)}
+                      className={cn(
+                        "ml-1 rounded p-0.5 transition-colors opacity-0 group-hover:opacity-100",
+                        copiedCalcCol === col.unitKey
+                          ? "text-emerald-600 opacity-100"
+                          : "text-gray-400 hover:text-gray-600 hover:bg-gray-200"
+                      )}
+                    >
+                      <Copy size={10} />
+                    </button>
+                  )}
                 </th>
                 <th
                   key={`${col.label}-total`}
                   className={cn(
-                    "px-3 pb-2 text-right text-[10px] text-gray-400",
+                    "group px-3 pb-2 text-right text-[10px] text-gray-400",
                     col.highlight && "bg-gray-100"
                   )}
                 >
                   total
+                  {col.copyable && (
+                    <button
+                      title={`Copy ${col.label} total values`}
+                      onClick={() => copyCalcColumn(col.totalKey)}
+                      className={cn(
+                        "ml-1 rounded p-0.5 transition-colors opacity-0 group-hover:opacity-100",
+                        copiedCalcCol === col.totalKey
+                          ? "text-emerald-600 opacity-100"
+                          : "text-gray-400 hover:text-gray-600 hover:bg-gray-200"
+                      )}
+                    >
+                      <Copy size={10} />
+                    </button>
+                  )}
                 </th>
               </>
             ))}
