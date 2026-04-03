@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { RefreshCw, Plus, Trash2 } from "lucide-react";
+import { RefreshCw, Plus, Trash2, Download, FileSpreadsheet, Printer } from "lucide-react";
 import { ProjectSelector } from "./ProjectSelector";
 import { ConstantsPanel } from "./ConstantsPanel";
 import { ProductTable } from "./ProductTable";
 import { PricingCharts } from "./PricingCharts";
 import { type Constants, DEFAULT_CONSTANTS } from "@/lib/calculations";
+import { exportToCsv, exportToPrint } from "@/lib/export";
 
 interface Project {
   id: number;
@@ -19,6 +20,8 @@ interface ProductRow {
   itemModel: string;
   priceUsd: number;
   quantity: number;
+  shippingOverride?: number | null;
+  customsOverride?: number | null;
 }
 
 interface Props {
@@ -34,6 +37,7 @@ export function PricingSheet({ manufacturerId, manufacturerName }: Props) {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
+  const [showExportMenu, setShowExportMenu] = useState(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Load projects list
@@ -81,6 +85,8 @@ export function PricingSheet({ manufacturerId, manufacturerName }: Props) {
               itemModel: l.itemModel,
               priceUsd: parseFloat(l.priceUsd),
               quantity: l.quantity,
+              shippingOverride: l.shippingOverride != null ? parseFloat(l.shippingOverride) : null,
+              customsOverride: l.customsOverride != null ? parseFloat(l.customsOverride) : null,
             }))
           );
         }
@@ -151,6 +157,20 @@ export function PricingSheet({ manufacturerId, manufacturerName }: Props) {
     }
   };
 
+  const selectedProject = projects.find((p) => p.id === selectedProjectId);
+
+  const handleExportCsv = () => {
+    if (!selectedProject || rows.length === 0) return;
+    exportToCsv(rows, constants, selectedProject.name, manufacturerName);
+    setShowExportMenu(false);
+  };
+
+  const handleExportPrint = () => {
+    if (!selectedProject || rows.length === 0) return;
+    exportToPrint(rows, constants, selectedProject.name, manufacturerName);
+    setShowExportMenu(false);
+  };
+
   return (
     <div className="space-y-5">
       {/* Header row */}
@@ -174,6 +194,43 @@ export function PricingSheet({ manufacturerId, manufacturerName }: Props) {
             </span>
           )}
         </div>
+
+        {/* Export button */}
+        {selectedProjectId && rows.length > 0 && (
+          <div className="relative">
+            <button
+              onClick={() => setShowExportMenu((v) => !v)}
+              className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:border-cyan-300 hover:bg-cyan-50 hover:text-cyan-700"
+            >
+              <Download className="h-3.5 w-3.5" />
+              Export
+            </button>
+            {showExportMenu && (
+              <>
+                <div
+                  className="fixed inset-0 z-10"
+                  onClick={() => setShowExportMenu(false)}
+                />
+                <div className="absolute right-0 z-20 mt-1 w-48 rounded-xl border border-gray-200 bg-white py-1 shadow-lg">
+                  <button
+                    onClick={handleExportPrint}
+                    className="flex w-full items-center gap-2.5 px-4 py-2.5 text-xs text-gray-700 hover:bg-gray-50"
+                  >
+                    <Printer className="h-3.5 w-3.5 text-gray-400" />
+                    Print / Save as PDF
+                  </button>
+                  <button
+                    onClick={handleExportCsv}
+                    className="flex w-full items-center gap-2.5 px-4 py-2.5 text-xs text-gray-700 hover:bg-gray-50"
+                  >
+                    <FileSpreadsheet className="h-3.5 w-3.5 text-gray-400" />
+                    Export as CSV
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {!selectedProjectId ? (

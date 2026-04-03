@@ -59,6 +59,8 @@ export const productLines = pgTable(
       .notNull()
       .default("0"),
     quantity: integer("quantity").notNull().default(1),
+    shippingOverride: numeric("shipping_override", { precision: 12, scale: 4 }),
+    customsOverride: numeric("customs_override", { precision: 12, scale: 4 }),
   },
   (t) => [unique().on(t.projectId, t.position)]
 );

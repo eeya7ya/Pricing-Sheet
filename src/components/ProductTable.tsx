@@ -8,7 +8,7 @@ import {
   type ProductInput,
 } from "@/lib/calculations";
 import { cn } from "@/lib/utils";
-import { Copy, ClipboardPaste } from "lucide-react";
+import { Copy, ClipboardPaste, Lock, Unlock } from "lucide-react";
 
 interface Row extends ProductInput {
   id: number;
@@ -48,6 +48,7 @@ const CALC_COLUMNS: CalcColumn[] = [
 ];
 
 type InputField = "itemModel" | "priceUsd" | "quantity";
+type OverrideField = "shippingOverride" | "customsOverride";
 
 export function ProductTable({ rows, constants, onChange }: Props) {
   const [copiedCol, setCopiedCol] = useState<InputField | null>(null);
@@ -58,11 +59,23 @@ export function ProductTable({ rows, constants, onChange }: Props) {
   }));
   const totals = calculateTotals(calculated);
 
-  const updateRow = (index: number, field: keyof ProductInput, value: string | number) => {
+  const updateRow = (index: number, field: keyof Row, value: string | number | null) => {
     const updated = rows.map((r, i) =>
       i === index ? { ...r, [field]: value } : r
     );
     onChange(updated);
+  };
+
+  const toggleOverride = (index: number, field: OverrideField, currentCalculatedValue: number) => {
+    const row = rows[index];
+    const currentOverride = row[field];
+    if (currentOverride != null) {
+      // Lock: clear the override
+      updateRow(index, field, null);
+    } else {
+      // Unlock: seed with current calculated value
+      updateRow(index, field, parseFloat(currentCalculatedValue.toFixed(4)));
+    }
   };
 
   const copyColumn = async (field: InputField) => {
@@ -245,29 +258,89 @@ export function ProductTable({ rows, constants, onChange }: Props) {
                 />
               </td>
               {/* Calculated columns */}
-              {CALC_COLUMNS.map((col) => (
-                <>
-                  <td
-                    key={`${col.label}-unit`}
-                    className={cn(
-                      "border-l border-gray-100 px-3 py-2.5 text-right font-mono whitespace-nowrap",
-                      col.color,
-                      col.highlight && "bg-gray-50"
-                    )}
-                  >
-                    {row.priceUsd ? N((row as any)[col.unitKey]) : "—"}
-                  </td>
-                  <td
-                    key={`${col.label}-total`}
-                    className={cn(
-                      "px-3 py-2.5 text-right font-mono whitespace-nowrap text-gray-500",
-                      col.highlight && "bg-gray-50 !text-gray-800 font-medium"
-                    )}
-                  >
-                    {row.priceUsd ? N((row as any)[col.totalKey]) : "—"}
-                  </td>
-                </>
-              ))}
+              {CALC_COLUMNS.map((col) => {
+                const isShipping = col.unitKey === "shipping";
+                const isCustoms = col.unitKey === "customs";
+                const overrideField: OverrideField | null = isShipping
+                  ? "shippingOverride"
+                  : isCustoms
+                  ? "customsOverride"
+                  : null;
+                const isOverridden = isShipping
+                  ? row.shippingIsOverridden
+                  : isCustoms
+                  ? row.customsIsOverridden
+                  : false;
+                const overrideValue = overrideField ? (rows[i][overrideField] ?? null) : null;
+                const calcValue = row.priceUsd ? (row as any)[col.unitKey] : null;
+
+                return (
+                  <>
+                    <td
+                      key={`${col.label}-unit`}
+                      className={cn(
+                        "border-l border-gray-100 px-2 py-1.5 text-right font-mono whitespace-nowrap",
+                        col.color,
+                        col.highlight && "bg-gray-50",
+                        overrideField && "group/cell"
+                      )}
+                    >
+                      {overrideField ? (
+                        <div className="flex items-center justify-end gap-1">
+                          {isOverridden ? (
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.001"
+                              value={overrideValue ?? ""}
+                              onChange={(e) =>
+                                updateRow(i, overrideField, parseFloat(e.target.value) || 0)
+                              }
+                              className={cn(
+                                "w-24 rounded border bg-white px-1.5 py-0.5 text-right font-mono text-xs focus:outline-none",
+                                isShipping
+                                  ? "border-blue-300 text-blue-700 focus:border-blue-400"
+                                  : "border-purple-300 text-purple-700 focus:border-purple-400"
+                              )}
+                            />
+                          ) : (
+                            <span className={row.priceUsd ? col.color : "text-gray-300"}>
+                              {calcValue != null ? N(calcValue) : "—"}
+                            </span>
+                          )}
+                          <button
+                            title={isOverridden ? "Lock (use calculated value)" : "Unlock to override"}
+                            onClick={() =>
+                              toggleOverride(i, overrideField, calcValue ?? 0)
+                            }
+                            className={cn(
+                              "rounded p-0.5 transition-colors flex-shrink-0",
+                              isOverridden
+                                ? isShipping
+                                  ? "text-blue-500 hover:text-blue-700 hover:bg-blue-50"
+                                  : "text-purple-500 hover:text-purple-700 hover:bg-purple-50"
+                                : "text-gray-300 hover:text-gray-500 hover:bg-gray-100 opacity-0 group-hover/cell:opacity-100"
+                            )}
+                          >
+                            {isOverridden ? <Unlock size={10} /> : <Lock size={10} />}
+                          </button>
+                        </div>
+                      ) : (
+                        <span>{row.priceUsd ? N((row as any)[col.unitKey]) : "—"}</span>
+                      )}
+                    </td>
+                    <td
+                      key={`${col.label}-total`}
+                      className={cn(
+                        "px-3 py-2.5 text-right font-mono whitespace-nowrap text-gray-500",
+                        col.highlight && "bg-gray-50 !text-gray-800 font-medium"
+                      )}
+                    >
+                      {row.priceUsd ? N((row as any)[col.totalKey]) : "—"}
+                    </td>
+                  </>
+                );
+              })}
             </tr>
           ))}
         </tbody>

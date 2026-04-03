@@ -73,6 +73,8 @@ export async function PUT(
             itemModel: line.itemModel ?? "",
             priceUsd: String(line.priceUsd ?? 0),
             quantity: line.quantity ?? 1,
+            shippingOverride: line.shippingOverride != null ? String(line.shippingOverride) : null,
+            customsOverride: line.customsOverride != null ? String(line.customsOverride) : null,
           })
           .where(
             eq(productLines.id, line.id)
