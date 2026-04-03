@@ -1,13 +1,12 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Save, RefreshCw } from "lucide-react";
+import { RefreshCw, Plus, Trash2 } from "lucide-react";
 import { ProjectSelector } from "./ProjectSelector";
 import { ConstantsPanel } from "./ConstantsPanel";
 import { ProductTable } from "./ProductTable";
 import { PricingCharts } from "./PricingCharts";
 import { type Constants, DEFAULT_CONSTANTS } from "@/lib/calculations";
-import { cn } from "@/lib/utils";
 
 interface Project {
   id: number;
@@ -43,7 +42,6 @@ export function PricingSheet({ manufacturerId, manufacturerName }: Props) {
     if (res.ok) {
       const data = await res.json();
       setProjects(data);
-      // Auto-select first project if none selected
       if (data.length > 0 && !selectedProjectId) {
         setSelectedProjectId(data[0].id);
       }
@@ -113,7 +111,6 @@ export function PricingSheet({ manufacturerId, manufacturerName }: Props) {
     }, 800);
   }, [selectedProjectId, constants, rows]);
 
-  // Trigger auto-save when data changes
   useEffect(() => {
     if (!loading && selectedProjectId) {
       scheduleSave();
@@ -136,6 +133,24 @@ export function PricingSheet({ manufacturerId, manufacturerName }: Props) {
     }
   };
 
+  const handleAddRow = () => {
+    const newRow: ProductRow = {
+      id: Date.now(),
+      position: rows.length + 1,
+      itemModel: "",
+      priceUsd: 0,
+      quantity: 1,
+    };
+    setRows([...rows, newRow]);
+  };
+
+  const handleClearRows = () => {
+    if (rows.length === 0) return;
+    if (confirm("Clear all product rows?")) {
+      setRows([]);
+    }
+  };
+
   return (
     <div className="space-y-5">
       {/* Header row */}
@@ -148,13 +163,13 @@ export function PricingSheet({ manufacturerId, manufacturerName }: Props) {
             onCreateNew={handleCreateProject}
           />
           {saving && (
-            <span className="flex items-center gap-1.5 text-xs text-slate-500">
+            <span className="flex items-center gap-1.5 text-xs text-gray-400">
               <RefreshCw className="h-3 w-3 animate-spin" />
               Saving…
             </span>
           )}
           {!saving && savedAt && (
-            <span className="text-xs text-slate-600">
+            <span className="text-xs text-gray-400">
               Saved {savedAt.toLocaleTimeString()}
             </span>
           )}
@@ -162,17 +177,17 @@ export function PricingSheet({ manufacturerId, manufacturerName }: Props) {
       </div>
 
       {!selectedProjectId ? (
-        <div className="flex h-48 items-center justify-center rounded-xl border border-dashed border-slate-700">
+        <div className="flex h-48 items-center justify-center rounded-xl border border-dashed border-gray-300">
           <div className="text-center">
-            <p className="text-sm text-slate-400">No project selected</p>
-            <p className="mt-1 text-xs text-slate-600">
+            <p className="text-sm text-gray-500">No project selected</p>
+            <p className="mt-1 text-xs text-gray-400">
               Use the dropdown above to select or create a project
             </p>
           </div>
         </div>
       ) : loading ? (
         <div className="flex h-48 items-center justify-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-700 border-t-cyan-400" />
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-200 border-t-cyan-500" />
         </div>
       ) : (
         <>
@@ -185,14 +200,49 @@ export function PricingSheet({ manufacturerId, manufacturerName }: Props) {
 
           {/* Product table */}
           <div>
-            <h3 className="mb-2 text-xs font-semibold uppercase tracking-widest text-slate-400">
-              Product Lines
-            </h3>
-            <ProductTable
-              rows={rows}
-              constants={constants}
-              onChange={setRows}
-            />
+            <div className="mb-2 flex items-center justify-between">
+              <h3 className="text-xs font-semibold uppercase tracking-widest text-gray-500">
+                Product Lines
+              </h3>
+              <div className="flex items-center gap-2">
+                {rows.length > 0 && (
+                  <button
+                    onClick={handleClearRows}
+                    className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-500 transition-colors hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                    Clear
+                  </button>
+                )}
+                <button
+                  onClick={handleAddRow}
+                  className="flex items-center gap-1.5 rounded-lg bg-cyan-500 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-cyan-400"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Add Row
+                </button>
+              </div>
+            </div>
+            {rows.length === 0 ? (
+              <div className="flex h-32 items-center justify-center rounded-xl border border-dashed border-gray-200">
+                <div className="text-center">
+                  <p className="text-sm text-gray-400">No products yet</p>
+                  <button
+                    onClick={handleAddRow}
+                    className="mt-2 flex items-center gap-1.5 mx-auto rounded-lg bg-cyan-500 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-cyan-400"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Add Row
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <ProductTable
+                rows={rows}
+                constants={constants}
+                onChange={setRows}
+              />
+            )}
           </div>
 
           {/* Charts */}
