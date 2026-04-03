@@ -17,6 +17,7 @@ export const manufacturers = pgTable("manufacturers", {
 export const projects = pgTable("projects", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
+  date: text("date"),
   manufacturerId: integer("manufacturer_id")
     .references(() => manufacturers.id, { onDelete: "cascade" })
     .notNull(),
