@@ -19,6 +19,7 @@ interface Props {
   rows: Row[];
   constants: Constants;
   onChange: (rows: Row[]) => void;
+  targetCurrency?: string;
 }
 
 function N(v: number) {
@@ -36,8 +37,9 @@ interface CalcColumn {
   highlight?: boolean;
 }
 
-const CALC_COLUMNS: CalcColumn[] = [
-  { label: "JOD Price", unitKey: "jodPrice", totalKey: "jodPriceTotal", color: "text-amber-600" },
+function buildCalcColumns(currencyCode = "JOD"): CalcColumn[] {
+  return [
+  { label: `${currencyCode} Price`, unitKey: "jodPrice", totalKey: "jodPriceTotal", color: "text-amber-600" },
   { label: "Shipping", unitKey: "shipping", totalKey: "shippingTotal", color: "text-blue-600" },
   { label: "Customs", unitKey: "customs", totalKey: "customsTotal", color: "text-purple-600" },
   { label: "Landed Cost", unitKey: "landedCost", totalKey: "landedCostTotal", color: "text-orange-600", highlight: true },
@@ -45,14 +47,17 @@ const CALC_COLUMNS: CalcColumn[] = [
   { label: "Pre-Tax Price", unitKey: "preTaxPrice", totalKey: "preTaxPriceTotal", color: "text-teal-600" },
   { label: "Tax", unitKey: "tax", totalKey: "taxTotal", color: "text-rose-600" },
   { label: "Final Price", unitKey: "finalPrice", totalKey: "finalPriceTotal", color: "text-cyan-600", highlight: true },
-];
+  ];
+}
 
 type InputField = "itemModel" | "priceUsd" | "quantity";
 type OverrideField = "shippingOverride" | "customsOverride";
 
-export function ProductTable({ rows, constants, onChange }: Props) {
+export function ProductTable({ rows, constants, onChange, targetCurrency }: Props) {
   const [copiedCol, setCopiedCol] = useState<InputField | null>(null);
   const [copiedCalcCol, setCopiedCalcCol] = useState<string | null>(null);
+
+  const CALC_COLUMNS = buildCalcColumns(targetCurrency);
 
   const calculated = rows.map((r) => ({
     ...r,

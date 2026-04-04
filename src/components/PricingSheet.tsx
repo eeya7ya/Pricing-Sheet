@@ -34,6 +34,7 @@ export function PricingSheet({ manufacturerId, manufacturerName }: Props) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const [constants, setConstants] = useState<Constants>(DEFAULT_CONSTANTS);
+  const [targetCurrency, setTargetCurrency] = useState("JOD");
   const [rows, setRows] = useState<ProductRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -84,6 +85,7 @@ export function PricingSheet({ manufacturerId, manufacturerName }: Props) {
             profitMargin: parseFloat(data.constants.profitMargin),
             taxRate: parseFloat(data.constants.taxRate),
           });
+          setTargetCurrency(data.constants.targetCurrency ?? "JOD");
         }
 
         if (data.productLines) {
@@ -119,7 +121,7 @@ export function PricingSheet({ manufacturerId, manufacturerName }: Props) {
         body: JSON.stringify({
           name: projectName,
           date: projectDate || null,
-          constants,
+          constants: { ...constants, targetCurrency },
           productLines: rows,
         }),
       });
@@ -302,6 +304,11 @@ export function PricingSheet({ manufacturerId, manufacturerName }: Props) {
             constants={constants}
             onChange={setConstants}
             saving={saving}
+            targetCurrency={targetCurrency}
+            onCurrencyChange={(code, rate) => {
+              setTargetCurrency(code);
+              setConstants((prev) => ({ ...prev, currencyRate: rate }));
+            }}
           />
 
           {/* Product table */}
@@ -347,6 +354,7 @@ export function PricingSheet({ manufacturerId, manufacturerName }: Props) {
                 rows={rows}
                 constants={constants}
                 onChange={setRows}
+                targetCurrency={targetCurrency}
               />
             )}
           </div>

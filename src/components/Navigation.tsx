@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Calculator, GitCompare, Home } from "lucide-react";
+import { Calculator, GitCompare, Home, UserPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navLinks = [
+  { href: "/request-access", label: "Request Access", icon: UserPlus },
   { href: "/", label: "Dashboard", icon: Home },
   { href: "/compare", label: "Compare", icon: GitCompare },
 ];
@@ -28,21 +29,27 @@ export function Navigation() {
 
         {/* Nav links */}
         <nav className="flex items-center gap-1">
-          {navLinks.map(({ href, label, icon: Icon }) => (
-            <Link
-              key={href}
-              href={href}
-              className={cn(
-                "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-                pathname === href
-                  ? "bg-gray-100 text-gray-900"
-                  : "text-gray-500 hover:bg-gray-100 hover:text-gray-800"
-              )}
-            >
-              <Icon className="h-3.5 w-3.5" />
-              {label}
-            </Link>
-          ))}
+          {navLinks.map(({ href, label, icon: Icon }) => {
+            const isActive = pathname === href;
+            const isRequestAccess = href === "/request-access";
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                  isRequestAccess && !isActive
+                    ? "text-cyan-600 hover:bg-cyan-50 hover:text-cyan-700"
+                    : isActive
+                    ? "bg-gray-100 text-gray-900"
+                    : "text-gray-500 hover:bg-gray-100 hover:text-gray-800"
+                )}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                {label}
+              </Link>
+            );
+          })}
         </nav>
       </div>
     </header>

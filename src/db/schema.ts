@@ -45,6 +45,17 @@ export const projectConstants = pgTable("project_constants", {
   taxRate: numeric("tax_rate", { precision: 10, scale: 6 })
     .notNull()
     .default("0.160000"),
+  targetCurrency: text("target_currency").notNull().default("JOD"),
+});
+
+export const accountRequests = pgTable("account_requests", {
+  id: serial("id").primaryKey(),
+  fullName: text("full_name").notNull(),
+  email: text("email").notNull(),
+  company: text("company").notNull().default(""),
+  message: text("message").notNull().default(""),
+  status: text("status").notNull().default("pending"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 export const productLines = pgTable(
@@ -72,3 +83,5 @@ export type Project = typeof projects.$inferSelect;
 export type NewProject = typeof projects.$inferInsert;
 export type ProjectConstants = typeof projectConstants.$inferSelect;
 export type ProductLine = typeof productLines.$inferSelect;
+export type AccountRequest = typeof accountRequests.$inferSelect;
+export type NewAccountRequest = typeof accountRequests.$inferInsert;
