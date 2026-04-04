@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { users, manufacturers, accountRequests } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { getCurrentUser, hashPassword } from "@/lib/auth";
-import nodemailer from "nodemailer";
+import { sendCredentialsEmail } from "@/lib/email";
 
 export async function GET() {
   try {
@@ -90,45 +90,12 @@ export async function POST(req: Request) {
         .where(eq(accountRequests.id, requestId));
     }
 
-    // Send credentials email
-    const smtpHost = process.env.SMTP_HOST;
-    const smtpUser = process.env.SMTP_USER;
-    const smtpPass = process.env.SMTP_PASS;
-
-    if (smtpHost && smtpUser && smtpPass) {
-      try {
-        const transporter = nodemailer.createTransport({
-          host: smtpHost,
-          port: parseInt(process.env.SMTP_PORT ?? "587"),
-          secure: process.env.SMTP_SECURE === "true",
-          auth: { user: smtpUser, pass: smtpPass },
-        });
-
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://your-app.vercel.app";
-
-        await transporter.sendMail({
-          from: `"Smart Pricing Sheet" <${smtpUser}>`,
-          to: email.trim(),
-          subject: "Your Smart Pricing Sheet account is ready",
-          html: `
-            <div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;border:1px solid #e5e7eb;border-radius:12px;">
-              <h2 style="margin:0 0 4px;font-size:20px;color:#111827;">Welcome, ${fullName.trim()}!</h2>
-              <p style="margin:0 0 24px;font-size:14px;color:#6b7280;">Your account has been created. Here are your login credentials:</p>
-              <table style="width:100%;border-collapse:collapse;font-size:14px;">
-                <tr><td style="padding:8px 0;color:#6b7280;width:110px;">Email</td><td style="padding:8px 0;color:#111827;font-weight:600;">${email.trim()}</td></tr>
-                <tr><td style="padding:8px 0;color:#6b7280;">Password</td><td style="padding:8px 0;font-family:monospace;color:#111827;font-weight:600;">${password}</td></tr>
-              </table>
-              <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;"/>
-              <a href="${appUrl}/login" style="display:inline-block;padding:10px 24px;background:#0891b2;color:#fff;border-radius:8px;text-decoration:none;font-size:14px;font-weight:600;">Sign In Now</a>
-              <p style="margin:20px 0 0;font-size:12px;color:#9ca3af;">Please change your password after your first login.</p>
-            </div>
-          `,
-        });
-      } catch (emailErr) {
-        console.error("[admin/users] Email send failed:", emailErr);
-        // Don't fail the whole request over email
-      }
-    }
+    // Send credentials email (non-blocking)
+    sendCredentialsEmail({
+      to: email.trim(),
+      fullName: fullName.trim(),
+      password,
+    }).catch((err) => console.error("[admin/users] credentials email error:", err));
 
     return NextResponse.json(
       { success: true, userId: user.id, manufacturerId: mfgId },
