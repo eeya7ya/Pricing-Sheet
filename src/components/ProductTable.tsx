@@ -8,7 +8,7 @@ import {
   type ProductInput,
 } from "@/lib/calculations";
 import { cn } from "@/lib/utils";
-import { Copy, ClipboardPaste, Lock, Unlock } from "lucide-react";
+import { Copy, ClipboardPaste, Lock, Unlock, Trash2 } from "lucide-react";
 
 interface Row extends ProductInput {
   id: number;
@@ -124,6 +124,13 @@ export function ProductTable({ rows, constants, onChange }: Props) {
     onChange(updated);
   };
 
+  const deleteRow = (index: number) => {
+    const updated = rows
+      .filter((_, i) => i !== index)
+      .map((r, i) => ({ ...r, position: i + 1 }));
+    onChange(updated);
+  };
+
   const ColActions = ({ field }: { field: InputField }) => (
     <span className="ml-1.5 inline-flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
       <button
@@ -169,6 +176,7 @@ export function ProductTable({ rows, constants, onChange }: Props) {
               Qty
               <ColActions field="quantity" />
             </th>
+            <th className="w-8" />
             {/* Calculated columns (each has /Unit and Total) */}
             {CALC_COLUMNS.map((col) => (
               <th
@@ -189,6 +197,7 @@ export function ProductTable({ rows, constants, onChange }: Props) {
             <th className="sticky left-10 z-10 bg-gray-50" />
             <th className="px-3 pb-2 text-right text-gray-400 text-[10px]">per unit</th>
             <th className="px-3 pb-2 text-center text-gray-400 text-[10px]" />
+            <th className="w-8" />
             {CALC_COLUMNS.map((col) => (
               <>
                 <th
@@ -218,7 +227,7 @@ export function ProductTable({ rows, constants, onChange }: Props) {
             <tr
               key={row.id}
               className={cn(
-                "border-b border-gray-100 transition-colors",
+                "group border-b border-gray-100 transition-colors",
                 "hover:bg-gray-50",
                 !row.itemModel && !row.priceUsd && "opacity-60"
               )}
@@ -275,6 +284,16 @@ export function ProductTable({ rows, constants, onChange }: Props) {
                   }}
                   className="w-full rounded border border-transparent bg-transparent px-1.5 py-1 text-center font-mono text-gray-800 transition-colors focus:border-gray-300 focus:bg-gray-50 focus:outline-none"
                 />
+              </td>
+              {/* Delete button */}
+              <td className="px-1 py-1.5">
+                <button
+                  title="Delete row"
+                  onClick={() => deleteRow(i)}
+                  className="rounded p-1 text-gray-300 opacity-0 transition-colors hover:bg-rose-50 hover:text-rose-500 group-hover:opacity-100"
+                >
+                  <Trash2 size={12} />
+                </button>
               </td>
               {/* Calculated columns */}
               {CALC_COLUMNS.map((col) => {
@@ -370,6 +389,7 @@ export function ProductTable({ rows, constants, onChange }: Props) {
             <td className="sticky left-10 z-10 bg-gray-100 px-3 py-3 text-sm font-bold text-gray-700">
               TOTALS
             </td>
+            <td className="px-3 py-3" />
             <td className="px-3 py-3" />
             <td className="px-3 py-3" />
             {CALC_COLUMNS.map((col) => (
