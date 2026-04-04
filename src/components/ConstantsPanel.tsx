@@ -29,7 +29,7 @@ const CONSTANT_FIELDS: ConstantField[] = [
   {
     key: "customsRate",
     label: "Customs / Clearance",
-    description: "% of shipping cost",
+    description: "% of (JOD price + shipping)",
     isRate: true,
     color: "text-purple-600",
   },
