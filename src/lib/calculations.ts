@@ -61,8 +61,7 @@ export function calculateRow(
   const shippingIsOverridden = shippingOverride != null;
   const customsIsOverridden = customsOverride != null;
   const shipping = shippingIsOverridden ? shippingOverride! : jodPrice * shippingRate;
-  const customsBase = shipping !== 0 ? shipping : jodPrice;
-  const customs = customsIsOverridden ? customsOverride! : customsBase * customsRate;
+  const customs = customsIsOverridden ? customsOverride! : (jodPrice + shipping) * customsRate;
   const landedCost = jodPrice + shipping + customs;
   const profit = landedCost * profitMargin;
   const preTaxPrice = landedCost + profit;
