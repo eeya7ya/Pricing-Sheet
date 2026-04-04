@@ -14,6 +14,19 @@ export const manufacturers = pgTable("manufacturers", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const users = pgTable("users", {
+  id: serial("id").primaryKey(),
+  email: text("email").notNull().unique(),
+  passwordHash: text("password_hash").notNull(),
+  fullName: text("full_name").notNull(),
+  role: text("role").notNull().default("user"), // 'admin' | 'user'
+  manufacturerId: integer("manufacturer_id").references(
+    () => manufacturers.id,
+    { onDelete: "set null" }
+  ),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const projects = pgTable("projects", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
@@ -85,3 +98,5 @@ export type ProjectConstants = typeof projectConstants.$inferSelect;
 export type ProductLine = typeof productLines.$inferSelect;
 export type AccountRequest = typeof accountRequests.$inferSelect;
 export type NewAccountRequest = typeof accountRequests.$inferInsert;
+export type User = typeof users.$inferSelect;
+export type NewUser = typeof users.$inferInsert;

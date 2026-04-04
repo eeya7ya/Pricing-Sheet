@@ -2,12 +2,26 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { getCurrentUser } from "@/lib/auth";
 
 export async function GET() {
   try {
-    const allManufacturers = await db.query.manufacturers.findMany({
-      orderBy: (m, { asc }) => [asc(m.createdAt)],
-    });
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Admin sees all; regular user sees only their manufacturer
+    const allManufacturers =
+      user.role === "admin"
+        ? await db.query.manufacturers.findMany({
+            orderBy: (m, { asc }) => [asc(m.createdAt)],
+          })
+        : user.manufacturerId
+        ? await db.query.manufacturers.findMany({
+            where: (m, { eq }) => eq(m.id, user.manufacturerId!),
+          })
+        : [];
 
     const result = await Promise.all(
       allManufacturers.map(async (manufacturer) => {
