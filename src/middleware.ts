@@ -10,7 +10,7 @@ const getSecret = () =>
   );
 
 // Pages accessible without auth
-const PUBLIC_PAGES = new Set(["/login", "/request-access"]);
+const PUBLIC_PAGES = new Set(["/login", "/request-access", "/setup"]);
 // API prefixes accessible without auth
 const PUBLIC_API_PREFIXES = ["/api/auth/", "/api/request-access"];
 
