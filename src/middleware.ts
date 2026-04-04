@@ -12,7 +12,7 @@ const getSecret = () =>
 // Pages accessible without auth
 const PUBLIC_PAGES = new Set(["/login", "/request-access", "/setup"]);
 // API prefixes accessible without auth
-const PUBLIC_API_PREFIXES = ["/api/auth/", "/api/request-access"];
+const PUBLIC_API_PREFIXES = ["/api/auth/", "/api/request-access", "/api/admin/setup"];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
