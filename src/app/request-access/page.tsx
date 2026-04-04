@@ -17,6 +17,7 @@ export default function RequestAccessPage() {
   const [form, setForm] = useState<FormState>(EMPTY);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [emailWarning, setEmailWarning] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const set = (key: keyof FormState) => (
@@ -44,6 +45,7 @@ export default function RequestAccessPage() {
         setError(data.error ?? "Something went wrong. Please try again.");
       } else {
         setSuccess(true);
+        setEmailWarning(data.emailWarning ?? null);
         setForm(EMPTY);
       }
     } catch {
@@ -76,19 +78,25 @@ export default function RequestAccessPage() {
         <div className="rounded-3xl border border-gray-200 bg-white p-8 shadow-sm">
           {success ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
-              <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-50 ring-1 ring-emerald-200">
-                <CheckCircle2 className="h-8 w-8 text-emerald-500" />
+              <div className={cn("mb-5 flex h-16 w-16 items-center justify-center rounded-2xl ring-1", emailWarning ? "bg-amber-50 ring-amber-200" : "bg-emerald-50 ring-emerald-200")}>
+                {emailWarning ? <AlertCircle className="h-8 w-8 text-amber-500" /> : <CheckCircle2 className="h-8 w-8 text-emerald-500" />}
               </div>
               <h2 className="mb-2 text-xl font-semibold text-gray-800">
                 Request Submitted!
               </h2>
+              {emailWarning ? (
+                <p className="mb-6 text-sm text-amber-600 max-w-xs bg-amber-50 rounded-xl px-4 py-3 border border-amber-200">
+                  {emailWarning}
+                </p>
+              ) : (
               <p className="mb-6 text-sm text-gray-500 max-w-xs">
                 Your request has been received. You will get your account
                 credentials by email shortly.
               </p>
+              )}
               <button
                 type="button"
-                onClick={() => setSuccess(false)}
+                onClick={() => { setSuccess(false); setEmailWarning(null); }}
                 className="rounded-xl border border-gray-200 px-5 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
               >
                 Submit another request
