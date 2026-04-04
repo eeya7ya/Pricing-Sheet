@@ -52,6 +52,7 @@ type OverrideField = "shippingOverride" | "customsOverride";
 
 export function ProductTable({ rows, constants, onChange }: Props) {
   const [copiedCol, setCopiedCol] = useState<InputField | null>(null);
+  const [copiedCalcCol, setCopiedCalcCol] = useState<string | null>(null);
 
   const calculated = rows.map((r) => ({
     ...r,
@@ -122,6 +123,14 @@ export function ProductTable({ rows, constants, onChange }: Props) {
     });
 
     onChange(updated);
+  };
+
+  const copyCalcColumn = async (key: string) => {
+    const filledRows = calculated.filter((r) => r.itemModel !== "");
+    const values = filledRows.map((r) => N((r as any)[key])).join("\n");
+    await navigator.clipboard.writeText(values);
+    setCopiedCalcCol(key);
+    setTimeout(() => setCopiedCalcCol(null), 1500);
   };
 
   const deleteRow = (index: number) => {
@@ -203,20 +212,48 @@ export function ProductTable({ rows, constants, onChange }: Props) {
                 <th
                   key={`${col.label}-unit`}
                   className={cn(
-                    "border-l border-gray-100 px-3 pb-2 text-right text-[10px] text-gray-400",
+                    "group border-l border-gray-100 px-3 pb-2 text-right text-[10px] text-gray-400",
                     col.highlight && "bg-gray-100"
                   )}
                 >
-                  /unit
+                  <span className="inline-flex items-center gap-0.5">
+                    /unit
+                    <button
+                      title={`Copy ${col.label} /unit column`}
+                      onClick={() => copyCalcColumn(col.unitKey)}
+                      className={cn(
+                        "rounded p-0.5 transition-colors opacity-0 group-hover:opacity-100",
+                        copiedCalcCol === col.unitKey
+                          ? "text-emerald-600"
+                          : "text-gray-400 hover:text-gray-600 hover:bg-gray-200"
+                      )}
+                    >
+                      <Copy size={10} />
+                    </button>
+                  </span>
                 </th>
                 <th
                   key={`${col.label}-total`}
                   className={cn(
-                    "px-3 pb-2 text-right text-[10px] text-gray-400",
+                    "group px-3 pb-2 text-right text-[10px] text-gray-400",
                     col.highlight && "bg-gray-100"
                   )}
                 >
-                  total
+                  <span className="inline-flex items-center gap-0.5">
+                    total
+                    <button
+                      title={`Copy ${col.label} total column`}
+                      onClick={() => copyCalcColumn(col.totalKey)}
+                      className={cn(
+                        "rounded p-0.5 transition-colors opacity-0 group-hover:opacity-100",
+                        copiedCalcCol === col.totalKey
+                          ? "text-emerald-600"
+                          : "text-gray-400 hover:text-gray-600 hover:bg-gray-200"
+                      )}
+                    >
+                      <Copy size={10} />
+                    </button>
+                  </span>
                 </th>
               </>
             ))}
