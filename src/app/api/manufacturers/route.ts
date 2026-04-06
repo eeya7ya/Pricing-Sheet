@@ -2,9 +2,9 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { manufacturers } from "@/db/schema";
+import { manufacturers, users } from "@/db/schema";
 import { eq, isNull } from "drizzle-orm";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, signToken, COOKIE_NAME, type AuthUser } from "@/lib/auth";
 
 export async function GET() {
   try {
@@ -39,8 +39,8 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const user = await getCurrentUser();
-    if (!user || user.role !== "admin") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { name } = await req.json();
@@ -51,6 +51,23 @@ export async function POST(req: Request) {
       .insert(manufacturers)
       .values({ name: name.trim() })
       .returning();
+
+    // For regular users with no manufacturer yet: assign them to this new one and refresh JWT
+    if (user.role !== "admin" && !user.manufacturerId) {
+      await db.update(users).set({ manufacturerId: created.id }).where(eq(users.id, user.id));
+      const updatedUser: AuthUser = { ...user, manufacturerId: created.id };
+      const token = await signToken(updatedUser);
+      const res = NextResponse.json(created, { status: 201 });
+      res.cookies.set(COOKIE_NAME, token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 60 * 60 * 24 * 30,
+        path: "/",
+      });
+      return res;
+    }
+
     return NextResponse.json(created, { status: 201 });
   } catch (error) {
     console.error(error);

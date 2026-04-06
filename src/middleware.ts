@@ -48,10 +48,6 @@ export async function middleware(request: NextRequest) {
 
     // Non-admin API guard: filter manufacturer/project access at API level
     if (pathname.startsWith("/api/") && role !== "admin") {
-      // Block POSTing new manufacturers
-      if (pathname === "/api/manufacturers" && request.method === "POST") {
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-      }
       // Block accessing a different manufacturer's data
       const mMatch = pathname.match(/^\/api\/manufacturers\/(\d+)/);
       if (mMatch && manufacturerId !== null) {
@@ -62,16 +58,13 @@ export async function middleware(request: NextRequest) {
       }
     }
 
-    // Non-admin visiting dashboard → send to their sheet (or no-manufacturer page)
-    if (pathname === "/" && role !== "admin") {
-      if (manufacturerId) {
-        return NextResponse.redirect(
-          new URL(`/manufacturer/${manufacturerId}`, request.url)
-        );
-      }
-      // No manufacturer assigned yet — show a holding page
-      return NextResponse.redirect(new URL("/no-manufacturer", request.url));
+    // Non-admin with a manufacturer → send directly to their sheet
+    if (pathname === "/" && role !== "admin" && manufacturerId) {
+      return NextResponse.redirect(
+        new URL(`/manufacturer/${manufacturerId}`, request.url)
+      );
     }
+    // Non-admin without a manufacturer → let them reach the dashboard to create one
 
     // Non-admin visiting a different manufacturer's page → redirect to own
     if (
