@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { manufacturers, users } from "@/db/schema";
-import { eq, isNull, inArray } from "drizzle-orm";
+import { eq, isNull } from "drizzle-orm";
 import { getCurrentUser, signToken, COOKIE_NAME, type AuthUser } from "@/lib/auth";
 
 export async function GET() {
@@ -18,15 +18,21 @@ export async function GET() {
         where: (m, { isNull }) => isNull(m.deletedAt),
         orderBy: (m, { asc }) => [asc(m.createdAt)],
       });
-      // Attach creator name for grouping in the dashboard
-      const creatorIds = [...new Set(all.map((m) => m.createdByUserId).filter((id): id is number => id !== null))];
-      const creators = creatorIds.length > 0
-        ? await db.query.users.findMany({ where: (u, { inArray }) => inArray(u.id, creatorIds) })
-        : [];
-      const creatorMap = Object.fromEntries(creators.map((u) => [u.id, u.fullName]));
+      // Reverse-lookup: find which regular user owns each manufacturer
+      // (users.manufacturerId points to their manufacturer)
+      const regularUsers = await db.query.users.findMany({
+        where: (u, { eq }) => eq(u.role, "user"),
+      });
+      // Map manufacturerId → owner name
+      const ownerMap: Record<number, string> = {};
+      for (const u of regularUsers) {
+        if (u.manufacturerId !== null) {
+          ownerMap[u.manufacturerId] = u.fullName;
+        }
+      }
       const result = all.map((m) => ({
         ...m,
-        createdByUserName: m.createdByUserId ? (creatorMap[m.createdByUserId] ?? null) : null,
+        ownerName: ownerMap[m.id] ?? null,
       }));
       return NextResponse.json(result);
     }
@@ -59,7 +65,7 @@ export async function POST(req: Request) {
     }
     const [created] = await db
       .insert(manufacturers)
-      .values({ name: name.trim(), createdByUserId: user.id })
+      .values({ name: name.trim() })
       .returning();
 
     // For regular users with no manufacturer yet: assign them to this new one and refresh JWT
