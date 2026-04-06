@@ -13,6 +13,7 @@ import {
   Factory,
   X,
   Trash2,
+  XCircle,
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -152,8 +153,22 @@ export default function AdminPage() {
     }
   };
 
+  const handleReject = async (id: number) => {
+    try {
+      await fetch(`/api/admin/requests/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "rejected" }),
+      });
+      await loadData();
+    } catch {
+      // silently ignore
+    }
+  };
+
   const pendingRequests = requests.filter((r) => r.status === "pending");
-  const approvedRequests = requests.filter((r) => r.status !== "pending");
+  const approvedRequests = requests.filter((r) => r.status === "approved");
+  const rejectedRequests = requests.filter((r) => r.status === "rejected");
 
   const mfgNameById = Object.fromEntries(
     manufacturers.map((m) => [m.id, m.name])
@@ -269,13 +284,22 @@ export default function AdminPage() {
                             {new Date(req.createdAt).toLocaleString()}
                           </p>
                         </div>
-                        <button
-                          onClick={() => openFormForRequest(req)}
-                          className="flex-shrink-0 flex items-center gap-2 rounded-xl bg-cyan-500 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-400 transition-colors"
-                        >
-                          <CheckCircle2 className="h-4 w-4" />
-                          Create Account
-                        </button>
+                        <div className="flex flex-shrink-0 items-center gap-2">
+                          <button
+                            onClick={() => handleReject(req.id)}
+                            className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-600 hover:bg-rose-100 transition-colors"
+                          >
+                            <XCircle className="h-4 w-4" />
+                            Reject
+                          </button>
+                          <button
+                            onClick={() => openFormForRequest(req)}
+                            className="flex items-center gap-2 rounded-xl bg-cyan-500 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-400 transition-colors"
+                          >
+                            <CheckCircle2 className="h-4 w-4" />
+                            Create Account
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -295,6 +319,28 @@ export default function AdminPage() {
                         <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-emerald-500" />
                         <span className="font-medium text-gray-800">{req.fullName}</span>
                         <span className="text-sm text-gray-500">{req.email}</span>
+                        <span className="ml-auto text-xs text-gray-400">
+                          {new Date(req.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {rejectedRequests.length > 0 && (
+                <div className="mt-6">
+                  <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-gray-500">
+                    Rejected ({rejectedRequests.length})
+                  </h2>
+                  <div className="space-y-2">
+                    {rejectedRequests.map((req) => (
+                      <div
+                        key={req.id}
+                        className="flex items-center gap-3 rounded-xl border border-rose-100 bg-rose-50/40 px-4 py-3"
+                      >
+                        <XCircle className="h-4 w-4 flex-shrink-0 text-rose-400" />
+                        <span className="font-medium text-gray-600">{req.fullName}</span>
+                        <span className="text-sm text-gray-400">{req.email}</span>
                         <span className="ml-auto text-xs text-gray-400">
                           {new Date(req.createdAt).toLocaleDateString()}
                         </span>
