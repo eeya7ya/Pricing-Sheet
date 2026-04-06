@@ -44,7 +44,7 @@ function buildConstantFields(currencyCode: string): ConstantField[] {
     {
       key: "currencyRate",
       label: "Currency Rate",
-      description: `USD → ${currencyCode}`,
+      description: `from USD to ${currencyCode}`,
       isRate: false,
       color: "text-amber-600",
     },
