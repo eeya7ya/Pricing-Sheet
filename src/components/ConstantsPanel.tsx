@@ -39,12 +39,12 @@ interface ConstantField {
   color: string;
 }
 
-function buildConstantFields(currencyCode: string): ConstantField[] {
+function buildConstantFields(sourceCurrency: string, targetCurrency: string): ConstantField[] {
   return [
     {
       key: "currencyRate",
       label: "Currency Rate",
-      description: `from USD to ${currencyCode}`,
+      description: `from ${sourceCurrency} to ${targetCurrency}`,
       isRate: false,
       color: "text-amber-600",
     },
@@ -83,7 +83,9 @@ interface Props {
   constants: Constants;
   onChange: (updated: Constants) => void;
   saving?: boolean;
+  sourceCurrency: string;
   targetCurrency: string;
+  onSourceCurrencyChange: (code: string) => void;
   onCurrencyChange: (code: string, newRate: number) => void;
 }
 
@@ -91,13 +93,15 @@ export function ConstantsPanel({
   constants,
   onChange,
   saving,
+  sourceCurrency,
   targetCurrency,
+  onSourceCurrencyChange,
   onCurrencyChange,
 }: Props) {
   const [fetchingRate, setFetchingRate] = useState(false);
   const [rateError, setRateError] = useState<string | null>(null);
 
-  const CONSTANT_FIELDS = buildConstantFields(targetCurrency);
+  const CONSTANT_FIELDS = buildConstantFields(sourceCurrency, targetCurrency);
 
   const handleChange = (key: keyof Constants, raw: string) => {
     const parsed = parseFloat(raw);
@@ -126,14 +130,12 @@ export function ConstantsPanel({
     setFetchingRate(true);
     setRateError(null);
     try {
-      const res = await fetch(
-        `https://open.er-api.com/v6/latest/USD`
-      );
+      const res = await fetch(`https://open.er-api.com/v6/latest/${sourceCurrency}`);
       if (!res.ok) throw new Error("API error");
       const data = await res.json();
       const rate = data?.rates?.[targetCurrency];
       if (rate == null) {
-        setRateError(`No rate found for ${targetCurrency}`);
+        setRateError(`No rate found for ${sourceCurrency} → ${targetCurrency}`);
       } else {
         onChange({ ...constants, currencyRate: parseFloat(rate.toFixed(6)) });
       }
@@ -144,6 +146,7 @@ export function ConstantsPanel({
     }
   };
 
+  const selectedSourceCurrency = CURRENCIES.find((c) => c.code === sourceCurrency);
   const selectedCurrency = CURRENCIES.find((c) => c.code === targetCurrency);
 
   return (
@@ -159,18 +162,16 @@ export function ConstantsPanel({
 
       {/* Currency selector row */}
       <div className="mb-4 flex flex-wrap items-end gap-3">
+        {/* From currency */}
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-gray-500">
-            Target Currency
-            <span className="ml-1 text-gray-400">(price display currency)</span>
-          </label>
+          <label className="text-xs text-gray-500">From Currency</label>
           <select
-            value={targetCurrency}
-            onChange={(e) => handleCurrencySelect(e.target.value)}
+            value={sourceCurrency}
+            onChange={(e) => onSourceCurrencyChange(e.target.value)}
             className={cn(
               "rounded-lg border border-gray-200 bg-gray-50 py-2 pl-3 pr-8 text-sm font-medium text-gray-700",
               "focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400/30",
-              "transition-colors appearance-none cursor-pointer min-w-[200px]"
+              "transition-colors appearance-none cursor-pointer min-w-[180px]"
             )}
           >
             {CURRENCIES.map((c) => (
@@ -181,7 +182,29 @@ export function ConstantsPanel({
           </select>
         </div>
 
-        {targetCurrency !== "USD" && (
+        <span className="mb-2 text-sm text-gray-400">→</span>
+
+        {/* To currency */}
+        <div className="flex flex-col gap-1">
+          <label className="text-xs text-gray-500">To Currency</label>
+          <select
+            value={targetCurrency}
+            onChange={(e) => handleCurrencySelect(e.target.value)}
+            className={cn(
+              "rounded-lg border border-gray-200 bg-gray-50 py-2 pl-3 pr-8 text-sm font-medium text-gray-700",
+              "focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400/30",
+              "transition-colors appearance-none cursor-pointer min-w-[180px]"
+            )}
+          >
+            {CURRENCIES.map((c) => (
+              <option key={c.code} value={c.code}>
+                {c.flag} {c.code} — {c.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {sourceCurrency !== targetCurrency && (
           <button
             type="button"
             onClick={fetchLiveRate}
@@ -203,9 +226,9 @@ export function ConstantsPanel({
         {rateError && (
           <span className="text-xs text-rose-500">{rateError}</span>
         )}
-        {selectedCurrency && (
+        {selectedSourceCurrency && selectedCurrency && sourceCurrency !== targetCurrency && (
           <span className="text-xs text-gray-400">
-            Typical: 1 USD ≈ {selectedCurrency.defaultRate} {selectedCurrency.code}
+            Typical: 1 {selectedSourceCurrency.code} ≈ {(selectedCurrency.defaultRate / selectedSourceCurrency.defaultRate).toFixed(4)} {selectedCurrency.code}
           </span>
         )}
       </div>
