@@ -14,6 +14,7 @@ export const manufacturers = pgTable("manufacturers", {
   name: text("name").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   deletedAt: timestamp("deleted_at"),
+  createdByUserId: integer("created_by_user_id"),
 });
 
 export const users = pgTable("users", {

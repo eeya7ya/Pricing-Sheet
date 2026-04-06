@@ -49,7 +49,7 @@ export async function POST(req: Request) {
         ? "/"
         : authUser.manufacturerId
         ? `/manufacturer/${authUser.manufacturerId}`
-        : "/request-access";
+        : "/";
 
     const res = NextResponse.json({ user: authUser, redirectTo });
     res.cookies.set(COOKIE_NAME, token, {
