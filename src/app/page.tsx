@@ -67,6 +67,12 @@ export default function DashboardPage() {
         body: JSON.stringify({ name: newName.trim() }),
       });
       if (res.ok) {
+        const created = await res.json();
+        if (!isAdmin) {
+          // JWT was refreshed by the server; navigate to the new manufacturer
+          window.location.href = `/manufacturer/${created.id}`;
+          return;
+        }
         setNewName("");
         setCreating(false);
         await loadData();
@@ -109,8 +115,8 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        {/* Add manufacturer (admin only) */}
-        {isAdmin && <div className="flex-shrink-0">
+        {/* Add manufacturer */}
+        <div className="flex-shrink-0">
           {creating ? (
             <div className="flex flex-col gap-2 items-end">
               <div className="flex items-center gap-2">
@@ -163,7 +169,7 @@ export default function DashboardPage() {
               Add Manufacturer
             </button>
           )}
-        </div>}
+        </div>
       </div>
 
       {/* Content */}
@@ -180,10 +186,9 @@ export default function DashboardPage() {
             No manufacturers yet
           </h3>
           <p className="mb-7 text-sm text-gray-500">
-            {isAdmin ? "Add your first manufacturer to get started" : "No manufacturers have been added yet"}
+            Add your first manufacturer to get started
           </p>
-          {isAdmin && (
-            <button
+          <button
               type="button"
               onClick={() => setCreating(true)}
               className="flex items-center gap-2 rounded-xl bg-cyan-500 px-6 py-3 text-sm font-semibold text-white hover:bg-cyan-400 transition-all shadow-sm"
@@ -191,7 +196,6 @@ export default function DashboardPage() {
               <Plus className="h-4 w-4" />
               Add Manufacturer
             </button>
-          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
