@@ -23,11 +23,19 @@ export default function DashboardPage() {
   const [newName, setNewName] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
     try {
-      const mRes = await fetch("/api/manufacturers");
+      const [mRes, meRes] = await Promise.all([
+        fetch("/api/manufacturers"),
+        fetch("/api/auth/me"),
+      ]);
+      if (meRes.ok) {
+        const me = await meRes.json();
+        setIsAdmin(me.role === "admin");
+      }
       if (mRes.ok) {
         const manufacturers: Manufacturer[] = await mRes.json();
         const withCounts = await Promise.all(
@@ -101,8 +109,8 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        {/* Add manufacturer */}
-        <div className="flex-shrink-0">
+        {/* Add manufacturer (admin only) */}
+        {isAdmin && <div className="flex-shrink-0">
           {creating ? (
             <div className="flex flex-col gap-2 items-end">
               <div className="flex items-center gap-2">
@@ -155,7 +163,7 @@ export default function DashboardPage() {
               Add Manufacturer
             </button>
           )}
-        </div>
+        </div>}
       </div>
 
       {/* Content */}
@@ -172,16 +180,18 @@ export default function DashboardPage() {
             No manufacturers yet
           </h3>
           <p className="mb-7 text-sm text-gray-500">
-            Add your first manufacturer to get started
+            {isAdmin ? "Add your first manufacturer to get started" : "No manufacturers have been added yet"}
           </p>
-          <button
-            type="button"
-            onClick={() => setCreating(true)}
-            className="flex items-center gap-2 rounded-xl bg-cyan-500 px-6 py-3 text-sm font-semibold text-white hover:bg-cyan-400 transition-all shadow-sm"
-          >
-            <Plus className="h-4 w-4" />
-            Add Manufacturer
-          </button>
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={() => setCreating(true)}
+              className="flex items-center gap-2 rounded-xl bg-cyan-500 px-6 py-3 text-sm font-semibold text-white hover:bg-cyan-400 transition-all shadow-sm"
+            >
+              <Plus className="h-4 w-4" />
+              Add Manufacturer
+            </button>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { Save, Plus, Trash2, Download, FileSpreadsheet, Printer } from "lucide-react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { Save, Plus, Trash2, Download, FileSpreadsheet, Printer, FolderMinus } from "lucide-react";
 import { ProjectSelector } from "./ProjectSelector";
 import { ConstantsPanel } from "./ConstantsPanel";
 import { ProductTable } from "./ProductTable";
@@ -45,32 +45,41 @@ export function PricingSheet({ manufacturerId, manufacturerName }: Props) {
   const [projectName, setProjectName] = useState("");
   const [projectDate, setProjectDate] = useState("");
 
-  // Load projects list
+  // Track whether we've done the initial project auto-select
+  const initialSelectDone = useRef(false);
+
+  // Load projects list — only re-runs when manufacturerId changes
   const loadProjects = useCallback(async () => {
     const res = await fetch(`/api/projects?manufacturerId=${manufacturerId}`);
     if (res.ok) {
-      const data = await res.json();
+      const data: Project[] = await res.json();
       setProjects(data);
-      if (data.length > 0 && !selectedProjectId) {
+      // Auto-select first project on initial load only
+      if (!initialSelectDone.current && data.length > 0) {
+        initialSelectDone.current = true;
         setSelectedProjectId(data[0].id);
       }
     }
-  }, [manufacturerId, selectedProjectId]);
+  }, [manufacturerId]);
 
   useEffect(() => {
     loadProjects();
-  }, [manufacturerId]);
+  }, [loadProjects]);
 
   // Load project data when selection changes
   useEffect(() => {
     if (!selectedProjectId) return;
 
+    let cancelled = false;
+
     const load = async () => {
       setLoading(true);
       try {
         const res = await fetch(`/api/projects/${selectedProjectId}`);
-        if (!res.ok) return;
+        if (!res.ok || cancelled) return;
         const data = await res.json();
+
+        if (cancelled) return;
 
         if (data.project) {
           setProjectName(data.project.name ?? "");
@@ -102,16 +111,19 @@ export function PricingSheet({ manufacturerId, manufacturerName }: Props) {
           );
         }
       } finally {
-        setLoading(false);
-        setSavedAt(null);
+        if (!cancelled) {
+          setLoading(false);
+          setSavedAt(null);
+        }
       }
     };
 
     load();
+    return () => { cancelled = true; };
   }, [selectedProjectId]);
 
   // Manual save
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     if (!selectedProjectId || saving) return;
     setSaving(true);
     try {
@@ -127,7 +139,6 @@ export function PricingSheet({ manufacturerId, manufacturerName }: Props) {
       });
       if (res.ok) {
         const data = await res.json();
-        // Sync real DB ids back onto local rows
         if (data.productLines) {
           setRows((prev) =>
             prev.map((r, i) =>
@@ -135,7 +146,6 @@ export function PricingSheet({ manufacturerId, manufacturerName }: Props) {
             )
           );
         }
-        // Update project name in the list
         setProjects((prev) =>
           prev.map((p) =>
             p.id === selectedProjectId ? { ...p, name: projectName, date: projectDate || null } : p
@@ -146,9 +156,9 @@ export function PricingSheet({ manufacturerId, manufacturerName }: Props) {
     } finally {
       setSaving(false);
     }
-  };
+  }, [selectedProjectId, saving, projectName, projectDate, constants, targetCurrency, rows]);
 
-  const handleCreateProject = async (name: string) => {
+  const handleCreateProject = useCallback(async (name: string) => {
     const res = await fetch("/api/projects", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -159,39 +169,59 @@ export function PricingSheet({ manufacturerId, manufacturerName }: Props) {
       await loadProjects();
       setSelectedProjectId(project.id);
     }
-  };
+  }, [manufacturerId, loadProjects]);
 
-  const handleAddRow = () => {
-    const newRow: ProductRow = {
-      id: Date.now(),
-      position: rows.length + 1,
-      itemModel: "",
-      priceUsd: 0,
-      quantity: 1,
-    };
-    setRows([...rows, newRow]);
-  };
+  const handleAddRow = useCallback(() => {
+    setRows((prev) => [
+      ...prev,
+      {
+        id: Date.now(),
+        position: prev.length + 1,
+        itemModel: "",
+        priceUsd: 0,
+        quantity: 1,
+      },
+    ]);
+  }, []);
 
-  const handleClearRows = () => {
-    if (rows.length === 0) return;
-    if (confirm("Clear all product rows?")) {
-      setRows([]);
+  const handleClearRows = useCallback(() => {
+    setRows((prev) => {
+      if (prev.length === 0) return prev;
+      if (confirm("Clear all product rows?")) return [];
+      return prev;
+    });
+  }, []);
+
+  const handleDeleteProject = useCallback(async () => {
+    if (!selectedProjectId) return;
+    const project = projects.find((p) => p.id === selectedProjectId);
+    if (!confirm(`Move "${project?.name ?? "this project"}" to trash?`)) return;
+    const res = await fetch(`/api/projects/${selectedProjectId}`, { method: "DELETE" });
+    if (res.ok) {
+      setSelectedProjectId(null);
+      initialSelectDone.current = false;
+      await loadProjects();
     }
-  };
+  }, [selectedProjectId, projects, loadProjects]);
+
+  const handleCurrencyChange = useCallback((code: string, rate: number) => {
+    setTargetCurrency(code);
+    setConstants((prev) => ({ ...prev, currencyRate: rate }));
+  }, []);
 
   const selectedProject = projects.find((p) => p.id === selectedProjectId);
 
-  const handleExportCsv = () => {
+  const handleExportCsv = useCallback(() => {
     if (!selectedProject || rows.length === 0) return;
-    exportToCsv(rows, constants, projectName || selectedProject.name, manufacturerName);
+    exportToCsv(rows, constants, projectName || selectedProject.name, manufacturerName, targetCurrency);
     setShowExportMenu(false);
-  };
+  }, [selectedProject, rows, constants, projectName, manufacturerName, targetCurrency]);
 
-  const handleExportPrint = () => {
+  const handleExportPrint = useCallback(() => {
     if (!selectedProject || rows.length === 0) return;
-    exportToPrint(rows, constants, projectName || selectedProject.name, manufacturerName);
+    exportToPrint(rows, constants, projectName || selectedProject.name, manufacturerName, targetCurrency);
     setShowExportMenu(false);
-  };
+  }, [selectedProject, rows, constants, projectName, manufacturerName, targetCurrency]);
 
   return (
     <div className="space-y-5">
@@ -235,14 +265,24 @@ export function PricingSheet({ manufacturerId, manufacturerName }: Props) {
 
           {/* Manual Save button */}
           {selectedProjectId && !loading && (
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="flex items-center gap-1.5 rounded-lg bg-cyan-500 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-cyan-400 disabled:opacity-60"
-            >
-              <Save className="h-3.5 w-3.5" />
-              {saving ? "Saving…" : "Save"}
-            </button>
+            <>
+              <button
+                onClick={handleDeleteProject}
+                title="Move project to trash"
+                className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-500 transition-colors hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600"
+              >
+                <FolderMinus className="h-3.5 w-3.5" />
+                Delete
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="flex items-center gap-1.5 rounded-lg bg-cyan-500 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-cyan-400 disabled:opacity-60"
+              >
+                <Save className="h-3.5 w-3.5" />
+                {saving ? "Saving…" : "Save"}
+              </button>
+            </>
           )}
 
           {/* Export button */}
@@ -305,10 +345,7 @@ export function PricingSheet({ manufacturerId, manufacturerName }: Props) {
             onChange={setConstants}
             saving={saving}
             targetCurrency={targetCurrency}
-            onCurrencyChange={(code, rate) => {
-              setTargetCurrency(code);
-              setConstants((prev) => ({ ...prev, currencyRate: rate }));
-            }}
+            onCurrencyChange={handleCurrencyChange}
           />
 
           {/* Product table */}

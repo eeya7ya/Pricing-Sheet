@@ -25,7 +25,8 @@ export async function GET(req: Request) {
     }
 
     const all = await db.query.projects.findMany({
-      where: (p, { eq }) => eq(p.manufacturerId, mfgId),
+      where: (p, { eq, isNull, and }) =>
+        and(eq(p.manufacturerId, mfgId), isNull(p.deletedAt)),
       orderBy: (p, { asc }) => [asc(p.createdAt)],
     });
     return NextResponse.json(all);

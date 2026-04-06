@@ -3,19 +3,29 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { projects, projectConstants, productLines } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, isNull, and } from "drizzle-orm";
+import { getCurrentUser } from "@/lib/auth";
 
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
     const { id } = await params;
     const project = await db.query.projects.findFirst({
-      where: (p, { eq }) => eq(p.id, parseInt(id)),
+      where: (p, { eq, isNull, and }) =>
+        and(eq(p.id, parseInt(id)), isNull(p.deletedAt)),
     });
     if (!project) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    // Non-admin can only access their own manufacturer's projects
+    if (user.role !== "admin" && user.manufacturerId !== project.manufacturerId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const constants = await db.query.projectConstants.findFirst({
@@ -39,12 +49,26 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
     const { id } = await params;
     const body = await req.json();
 
+    // Verify project exists and is not deleted
+    const project = await db.query.projects.findFirst({
+      where: (p, { eq, isNull, and }) =>
+        and(eq(p.id, parseInt(id)), isNull(p.deletedAt)),
+    });
+    if (!project) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+    if (user.role !== "admin" && user.manufacturerId !== project.manufacturerId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     // Update project name/date if provided
     if (body.name !== undefined || body.date !== undefined) {
-      const patch: Record<string, string> = {};
+      const patch: Record<string, any> = {};
       if (body.name !== undefined) patch.name = body.name.trim();
       if (body.date !== undefined) patch.date = body.date ?? null;
       await db
@@ -68,8 +92,7 @@ export async function PUT(
         .where(eq(projectConstants.projectId, parseInt(id)));
     }
 
-    // Update product lines if provided — delete all and re-insert so adds/removes are
-    // both handled correctly (avoids stale fake client-side IDs from new rows).
+    // Update product lines if provided
     if (body.productLines !== undefined) {
       await db.delete(productLines).where(eq(productLines.projectId, parseInt(id)));
       if (body.productLines.length > 0) {
@@ -87,7 +110,6 @@ export async function PUT(
       }
     }
 
-    // Return fresh product lines so the client can sync real DB ids
     const freshLines = await db.query.productLines.findMany({
       where: (l, { eq }) => eq(l.projectId, parseInt(id)),
       orderBy: (l, { asc }) => [asc(l.position)],
@@ -104,8 +126,24 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
     const { id } = await params;
-    await db.delete(projects).where(eq(projects.id, parseInt(id)));
+    const project = await db.query.projects.findFirst({
+      where: (p, { eq }) => eq(p.id, parseInt(id)),
+    });
+    if (!project) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+    if (user.role !== "admin" && user.manufacturerId !== project.manufacturerId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    // Soft delete
+    await db
+      .update(projects)
+      .set({ deletedAt: new Date() })
+      .where(eq(projects.id, parseInt(id)));
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error(error);

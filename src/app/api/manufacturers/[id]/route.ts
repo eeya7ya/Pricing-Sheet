@@ -3,13 +3,8 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { manufacturers } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, isNull, and } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth";
-
-async function checkAccess(userId: number | null, role: string, mfgId: number) {
-  if (role === "admin") return true;
-  return userId !== null && userId === mfgId; // manufacturerId check
-}
 
 export async function GET(
   _req: Request,
@@ -28,7 +23,8 @@ export async function GET(
     }
 
     const manufacturer = await db.query.manufacturers.findFirst({
-      where: (m, { eq }) => eq(m.id, mfgId),
+      where: (m, { eq, isNull, and }) =>
+        and(eq(m.id, mfgId), isNull(m.deletedAt)),
     });
     if (!manufacturer) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -62,7 +58,7 @@ export async function PUT(
     const [updated] = await db
       .update(manufacturers)
       .set({ name: name.trim() })
-      .where(eq(manufacturers.id, mfgId))
+      .where(and(eq(manufacturers.id, mfgId), isNull(manufacturers.deletedAt)))
       .returning();
     if (!updated) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -85,7 +81,11 @@ export async function DELETE(
     }
 
     const { id } = await params;
-    await db.delete(manufacturers).where(eq(manufacturers.id, parseInt(id)));
+    // Soft delete
+    await db
+      .update(manufacturers)
+      .set({ deletedAt: new Date() })
+      .where(eq(manufacturers.id, parseInt(id)));
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error(error);

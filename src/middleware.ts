@@ -62,13 +62,15 @@ export async function middleware(request: NextRequest) {
       }
     }
 
-    // Non-admin visiting dashboard → send to their sheet
+    // Non-admin visiting dashboard → send to their sheet (or no-manufacturer page)
     if (pathname === "/" && role !== "admin") {
       if (manufacturerId) {
         return NextResponse.redirect(
           new URL(`/manufacturer/${manufacturerId}`, request.url)
         );
       }
+      // No manufacturer assigned yet — show a holding page
+      return NextResponse.redirect(new URL("/no-manufacturer", request.url));
     }
 
     // Non-admin visiting a different manufacturer's page → redirect to own
