@@ -40,6 +40,7 @@ export async function POST(req: Request) {
       email,
       password,
       fullName,
+      role,             // "user" | "admin", defaults to "user"
       manufacturerId,   // existing manufacturer id, or null to create new
       manufacturerName, // used when manufacturerId is null
       requestId,        // optional: mark account_request as approved
@@ -71,14 +72,16 @@ export async function POST(req: Request) {
 
     const passwordHash = await hashPassword(password);
 
+    const assignedRole = role === "admin" ? "admin" : "user";
+
     const [user] = await db
       .insert(users)
       .values({
         email: email.trim().toLowerCase(),
         passwordHash,
         fullName: fullName.trim(),
-        role: "user",
-        manufacturerId: mfgId,
+        role: assignedRole,
+        manufacturerId: assignedRole === "admin" ? null : mfgId,
       })
       .returning();
 

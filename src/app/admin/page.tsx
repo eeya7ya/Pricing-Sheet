@@ -44,6 +44,7 @@ interface CreateForm {
   fullName: string;
   email: string;
   password: string;
+  role: "user" | "admin";
   manufacturerMode: "existing" | "new";
   manufacturerId: string;
   manufacturerName: string;
@@ -54,6 +55,7 @@ const EMPTY_FORM: CreateForm = {
   fullName: "",
   email: "",
   password: "",
+  role: "user",
   manufacturerMode: "new",
   manufacturerId: "",
   manufacturerName: "",
@@ -121,6 +123,7 @@ export default function AdminPage() {
         email: form.email,
         password: form.password,
         fullName: form.fullName,
+        role: form.role,
         requestId: form.requestId,
       };
 
@@ -409,8 +412,28 @@ export default function AdminPage() {
                 />
               </div>
 
-              {/* Manufacturer */}
+              {/* Role */}
               <div>
+                <label className="mb-1 block text-xs font-medium text-gray-600">Role</label>
+                <div className="flex gap-3">
+                  {(["user", "admin"] as const).map((r) => (
+                    <label key={r} className="flex items-center gap-1.5 text-sm text-gray-600 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="role"
+                        value={r}
+                        checked={form.role === r}
+                        onChange={() => setForm((f) => ({ ...f, role: r }))}
+                        className="accent-cyan-500"
+                      />
+                      {r === "admin" ? "Admin" : "User"}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Manufacturer — only relevant for user role */}
+              {form.role === "user" && <div>
                 <label className="mb-1 block text-xs font-medium text-gray-600">Manufacturer Access</label>
                 <div className="mb-2 flex gap-3">
                   {(["new", "existing"] as const).map((mode) => (
@@ -448,7 +471,7 @@ export default function AdminPage() {
                     ))}
                   </select>
                 )}
-              </div>
+              </div>}
 
               {formError && (
                 <div className="flex items-start gap-2 rounded-xl border border-rose-100 bg-rose-50 px-3 py-2.5">
