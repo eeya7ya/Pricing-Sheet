@@ -115,7 +115,7 @@ export function ConstantsPanel({
 
   const displayValue = (field: ConstantField) => {
     const v = constants[field.key];
-    return field.isRate ? (v * 100).toFixed(1) : v.toFixed(4);
+    return field.isRate ? (v * 100).toFixed(2) : v.toFixed(4);
   };
 
   const handleCurrencySelect = (code: string) => {
@@ -243,7 +243,7 @@ export function ConstantsPanel({
             <div className="relative">
               <input
                 type="number"
-                step={field.isRate ? "0.1" : "0.0001"}
+                step="any"
                 min="0"
                 value={displayValue(field)}
                 onChange={(e) => handleChange(field.key, e.target.value)}
