@@ -9,8 +9,7 @@ interface Manufacturer {
   id: number;
   name: string;
   createdAt: string;
-  createdByUserId: number | null;
-  createdByUserName: string | null;
+  ownerName: string | null;
 }
 
 interface ManufacturerWithCount {
@@ -106,11 +105,10 @@ export default function DashboardPage() {
   if (isAdmin) {
     const seen = new Set<string>();
     for (const { manufacturer: m } of items) {
-      if (m.createdByUserId && m.createdByUserName) {
-        const key = String(m.createdByUserId);
-        if (!seen.has(key)) {
-          seen.add(key);
-          userTabs.push({ id: key, label: m.createdByUserName });
+      if (m.ownerName) {
+        if (!seen.has(m.ownerName)) {
+          seen.add(m.ownerName);
+          userTabs.push({ id: m.ownerName, label: m.ownerName });
         }
       }
     }
@@ -118,7 +116,7 @@ export default function DashboardPage() {
 
   const visibleItems =
     isAdmin && activeTab !== "all"
-      ? items.filter(({ manufacturer: m }) => String(m.createdByUserId) === activeTab)
+      ? items.filter(({ manufacturer: m }) => m.ownerName === activeTab)
       : items;
 
   return (
