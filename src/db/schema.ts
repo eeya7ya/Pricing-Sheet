@@ -62,6 +62,7 @@ export const projectConstants = pgTable("project_constants", {
     .notNull()
     .default("0.160000"),
   targetCurrency: text("target_currency").notNull().default("JOD"),
+  sourceCurrency: text("source_currency").notNull().default("USD"),
 });
 
 export const accountRequests = pgTable("account_requests", {

@@ -35,6 +35,7 @@ export function PricingSheet({ manufacturerId, manufacturerName }: Props) {
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const [constants, setConstants] = useState<Constants>(DEFAULT_CONSTANTS);
   const [targetCurrency, setTargetCurrency] = useState("JOD");
+  const [sourceCurrency, setSourceCurrency] = useState("USD");
   const [rows, setRows] = useState<ProductRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -95,6 +96,7 @@ export function PricingSheet({ manufacturerId, manufacturerName }: Props) {
             taxRate: parseFloat(data.constants.taxRate),
           });
           setTargetCurrency(data.constants.targetCurrency ?? "JOD");
+          setSourceCurrency(data.constants.sourceCurrency ?? "USD");
         }
 
         if (data.productLines) {
@@ -133,7 +135,7 @@ export function PricingSheet({ manufacturerId, manufacturerName }: Props) {
         body: JSON.stringify({
           name: projectName,
           date: projectDate || null,
-          constants: { ...constants, targetCurrency },
+          constants: { ...constants, targetCurrency, sourceCurrency },
           productLines: rows,
         }),
       });
@@ -207,6 +209,10 @@ export function PricingSheet({ manufacturerId, manufacturerName }: Props) {
   const handleCurrencyChange = useCallback((code: string, rate: number) => {
     setTargetCurrency(code);
     setConstants((prev) => ({ ...prev, currencyRate: rate }));
+  }, []);
+
+  const handleSourceCurrencyChange = useCallback((code: string) => {
+    setSourceCurrency(code);
   }, []);
 
   const selectedProject = projects.find((p) => p.id === selectedProjectId);
@@ -344,7 +350,9 @@ export function PricingSheet({ manufacturerId, manufacturerName }: Props) {
             constants={constants}
             onChange={setConstants}
             saving={saving}
+            sourceCurrency={sourceCurrency}
             targetCurrency={targetCurrency}
+            onSourceCurrencyChange={handleSourceCurrencyChange}
             onCurrencyChange={handleCurrencyChange}
           />
 

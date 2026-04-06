@@ -88,6 +88,7 @@ export async function PUT(
           profitMargin: String(body.constants.profitMargin),
           taxRate: String(body.constants.taxRate),
           targetCurrency: body.constants.targetCurrency ?? "JOD",
+          sourceCurrency: body.constants.sourceCurrency ?? "USD",
         })
         .where(eq(projectConstants.projectId, parseInt(id)));
     }
