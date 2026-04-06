@@ -13,6 +13,7 @@ export interface Currency {
 }
 
 export const CURRENCIES: Currency[] = [
+  { code: "USD", name: "US Dollar",           flag: "🇺🇸", defaultRate: 1.0    },
   { code: "JOD", name: "Jordanian Dinar",    flag: "🇯🇴", defaultRate: 0.71   },
   { code: "SAR", name: "Saudi Riyal",         flag: "🇸🇦", defaultRate: 3.75   },
   { code: "AED", name: "UAE Dirham",          flag: "🇦🇪", defaultRate: 3.67   },
@@ -56,7 +57,7 @@ function buildConstantFields(currencyCode: string): ConstantField[] {
     },
     {
       key: "customsRate",
-      label: "Customs / Clearance",
+      label: "Customs",
       description: "% of (local price + shipping)",
       isRate: true,
       color: "text-purple-600",
@@ -116,7 +117,8 @@ export function ConstantsPanel({
   const handleCurrencySelect = (code: string) => {
     const currency = CURRENCIES.find((c) => c.code === code);
     if (currency) {
-      onCurrencyChange(code, currency.defaultRate);
+      // USD is the base currency — always rate 1.0
+      onCurrencyChange(code, code === "USD" ? 1.0 : currency.defaultRate);
     }
   };
 
@@ -160,7 +162,7 @@ export function ConstantsPanel({
         <div className="flex flex-col gap-1">
           <label className="text-xs text-gray-500">
             Target Currency
-            <span className="ml-1 text-gray-400">(convert USD to)</span>
+            <span className="ml-1 text-gray-400">(price display currency)</span>
           </label>
           <select
             value={targetCurrency}
@@ -179,22 +181,24 @@ export function ConstantsPanel({
           </select>
         </div>
 
-        <button
-          type="button"
-          onClick={fetchLiveRate}
-          disabled={fetchingRate}
-          title="Fetch live exchange rate from open.er-api.com"
-          className={cn(
-            "flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium",
-            "text-gray-600 transition-colors hover:border-cyan-300 hover:bg-cyan-50 hover:text-cyan-700",
-            "disabled:opacity-50 disabled:cursor-not-allowed"
-          )}
-        >
-          <RefreshCw
-            className={cn("h-3.5 w-3.5", fetchingRate && "animate-spin")}
-          />
-          {fetchingRate ? "Fetching…" : "Live Rate"}
-        </button>
+        {targetCurrency !== "USD" && (
+          <button
+            type="button"
+            onClick={fetchLiveRate}
+            disabled={fetchingRate}
+            title="Fetch live exchange rate from open.er-api.com"
+            className={cn(
+              "flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium",
+              "text-gray-600 transition-colors hover:border-cyan-300 hover:bg-cyan-50 hover:text-cyan-700",
+              "disabled:opacity-50 disabled:cursor-not-allowed"
+            )}
+          >
+            <RefreshCw
+              className={cn("h-3.5 w-3.5", fetchingRate && "animate-spin")}
+            />
+            {fetchingRate ? "Fetching…" : "Live Rate"}
+          </button>
+        )}
 
         {rateError && (
           <span className="text-xs text-rose-500">{rateError}</span>

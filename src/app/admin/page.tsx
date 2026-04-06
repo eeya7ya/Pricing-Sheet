@@ -12,7 +12,9 @@ import {
   AlertCircle,
   Factory,
   X,
+  Trash2,
 } from "lucide-react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 interface AccountRequest {
@@ -165,15 +167,24 @@ export default function AdminPage() {
           <ShieldCheck className="h-3.5 w-3.5" />
           Admin Panel
         </div>
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
           <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
-          <button
-            onClick={openBlankForm}
-            className="flex items-center gap-2 rounded-xl bg-cyan-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-cyan-400 transition-colors shadow-sm"
-          >
-            <Plus className="h-4 w-4" />
-            Create Account
-          </button>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/trash"
+              className="flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+            >
+              <Trash2 className="h-4 w-4" />
+              Trash Bin
+            </Link>
+            <button
+              onClick={openBlankForm}
+              className="flex items-center gap-2 rounded-xl bg-cyan-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-cyan-400 transition-colors shadow-sm"
+            >
+              <Plus className="h-4 w-4" />
+              Create Account
+            </button>
+          </div>
         </div>
       </div>
 
