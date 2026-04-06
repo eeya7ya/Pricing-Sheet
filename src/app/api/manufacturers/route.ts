@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { manufacturers, users } from "@/db/schema";
-import { eq, isNull } from "drizzle-orm";
+import { eq, isNull, inArray } from "drizzle-orm";
 import { getCurrentUser, signToken, COOKIE_NAME, type AuthUser } from "@/lib/auth";
 
 export async function GET() {
@@ -18,7 +18,17 @@ export async function GET() {
         where: (m, { isNull }) => isNull(m.deletedAt),
         orderBy: (m, { asc }) => [asc(m.createdAt)],
       });
-      return NextResponse.json(all);
+      // Attach creator name for grouping in the dashboard
+      const creatorIds = [...new Set(all.map((m) => m.createdByUserId).filter((id): id is number => id !== null))];
+      const creators = creatorIds.length > 0
+        ? await db.query.users.findMany({ where: (u, { inArray }) => inArray(u.id, creatorIds) })
+        : [];
+      const creatorMap = Object.fromEntries(creators.map((u) => [u.id, u.fullName]));
+      const result = all.map((m) => ({
+        ...m,
+        createdByUserName: m.createdByUserId ? (creatorMap[m.createdByUserId] ?? null) : null,
+      }));
+      return NextResponse.json(result);
     }
 
     // Regular user: return only their assigned manufacturer (if not deleted)
@@ -49,7 +59,7 @@ export async function POST(req: Request) {
     }
     const [created] = await db
       .insert(manufacturers)
-      .values({ name: name.trim() })
+      .values({ name: name.trim(), createdByUserId: user.id })
       .returning();
 
     // For regular users with no manufacturer yet: assign them to this new one and refresh JWT

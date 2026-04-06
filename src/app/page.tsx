@@ -9,6 +9,8 @@ interface Manufacturer {
   id: number;
   name: string;
   createdAt: string;
+  createdByUserId: number | null;
+  createdByUserName: string | null;
 }
 
 interface ManufacturerWithCount {
@@ -24,6 +26,7 @@ export default function DashboardPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [activeTab, setActiveTab] = useState("all");
 
   const loadData = async () => {
     setLoading(true);
@@ -97,6 +100,26 @@ export default function DashboardPage() {
     await fetch(`/api/manufacturers/${id}`, { method: "DELETE" });
     await loadData();
   };
+
+  // Build user tabs from items that have a named creator (admin-only UI)
+  const userTabs: { id: string; label: string }[] = [];
+  if (isAdmin) {
+    const seen = new Set<string>();
+    for (const { manufacturer: m } of items) {
+      if (m.createdByUserId && m.createdByUserName) {
+        const key = String(m.createdByUserId);
+        if (!seen.has(key)) {
+          seen.add(key);
+          userTabs.push({ id: key, label: m.createdByUserName });
+        }
+      }
+    }
+  }
+
+  const visibleItems =
+    isAdmin && activeTab !== "all"
+      ? items.filter(({ manufacturer: m }) => String(m.createdByUserId) === activeTab)
+      : items;
 
   return (
     <div className="mx-auto max-w-screen-xl px-4 py-10 sm:px-6">
@@ -172,12 +195,43 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* User tabs (admin only, shown when there are user-created manufacturers) */}
+      {isAdmin && userTabs.length > 0 && (
+        <div className="mb-6 flex flex-wrap gap-2">
+          <button
+            onClick={() => setActiveTab("all")}
+            className={cn(
+              "rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
+              activeTab === "all"
+                ? "bg-cyan-500 text-white shadow-sm"
+                : "border border-gray-200 bg-white text-gray-600 hover:border-cyan-300 hover:text-cyan-700"
+            )}
+          >
+            All
+          </button>
+          {userTabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                "rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
+                activeTab === tab.id
+                  ? "bg-cyan-500 text-white shadow-sm"
+                  : "border border-gray-200 bg-white text-gray-600 hover:border-cyan-300 hover:text-cyan-700"
+              )}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Content */}
       {loading ? (
         <div className="flex h-64 items-center justify-center">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-200 border-t-cyan-500" />
         </div>
-      ) : items.length === 0 ? (
+      ) : visibleItems.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-gray-200 bg-gray-50 py-24 text-center">
           <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-2xl bg-gray-100 ring-1 ring-gray-200">
             <Factory className="h-9 w-9 text-gray-400" />
@@ -189,17 +243,17 @@ export default function DashboardPage() {
             Add your first manufacturer to get started
           </p>
           <button
-              type="button"
-              onClick={() => setCreating(true)}
-              className="flex items-center gap-2 rounded-xl bg-cyan-500 px-6 py-3 text-sm font-semibold text-white hover:bg-cyan-400 transition-all shadow-sm"
-            >
-              <Plus className="h-4 w-4" />
-              Add Manufacturer
-            </button>
+            type="button"
+            onClick={() => setCreating(true)}
+            className="flex items-center gap-2 rounded-xl bg-cyan-500 px-6 py-3 text-sm font-semibold text-white hover:bg-cyan-400 transition-all shadow-sm"
+          >
+            <Plus className="h-4 w-4" />
+            Add Manufacturer
+          </button>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {items.map(({ manufacturer, projectCount }) => (
+          {visibleItems.map(({ manufacturer, projectCount }) => (
             <div key={manufacturer.id} className="animate-fade-in">
               <ManufacturerCard
                 id={manufacturer.id}
