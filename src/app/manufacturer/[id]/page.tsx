@@ -54,15 +54,8 @@ export default function ManufacturerPage() {
     setEditing(false);
   };
 
-  if (loading) {
-    return (
-      <div className="flex h-[calc(100vh-64px)] items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-200 border-t-cyan-500" />
-      </div>
-    );
-  }
-
-  if (!manufacturer) return null;
+  // Don't block render — show shell immediately, skeleton the name until loaded
+  if (!loading && !manufacturer) return null;
 
   return (
     <div className="mx-auto max-w-screen-2xl px-4 py-8 sm:px-6">
@@ -76,7 +69,11 @@ export default function ManufacturerPage() {
           Dashboard
         </Link>
         <span className="text-gray-300">/</span>
-        <span className="text-gray-700">{manufacturer.name}</span>
+        {loading ? (
+          <span className="h-4 w-32 animate-pulse rounded bg-gray-200" />
+        ) : (
+          <span className="text-gray-700">{manufacturer!.name}</span>
+        )}
       </div>
 
       {/* Page header */}
@@ -85,7 +82,9 @@ export default function ManufacturerPage() {
           <Factory className="h-5 w-5 text-cyan-600" />
         </div>
 
-        {editing ? (
+        {loading ? (
+          <div className="h-8 w-48 animate-pulse rounded-lg bg-gray-200" />
+        ) : editing ? (
           <div className="flex items-center gap-2">
             <input
               autoFocus
@@ -96,7 +95,7 @@ export default function ManufacturerPage() {
                 if (e.key === "Enter") handleSaveName();
                 if (e.key === "Escape") {
                   setEditing(false);
-                  setEditName(manufacturer.name);
+                  setEditName(manufacturer!.name);
                 }
               }}
               className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-lg font-bold text-gray-900 focus:border-cyan-400 focus:outline-none"
@@ -110,7 +109,7 @@ export default function ManufacturerPage() {
             <button
               onClick={() => {
                 setEditing(false);
-                setEditName(manufacturer.name);
+                setEditName(manufacturer!.name);
               }}
               className="rounded-md p-1.5 text-gray-400 hover:bg-gray-100"
             >
@@ -119,7 +118,7 @@ export default function ManufacturerPage() {
           </div>
         ) : (
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold text-gray-900">{manufacturer.name}</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{manufacturer!.name}</h1>
             <button
               onClick={() => setEditing(true)}
               className="rounded-md p-1.5 text-gray-300 transition-colors hover:bg-gray-100 hover:text-gray-600"
@@ -130,10 +129,10 @@ export default function ManufacturerPage() {
         )}
       </div>
 
-      {/* Pricing sheet */}
+      {/* Pricing sheet — renders immediately, loads its own data in parallel */}
       <PricingSheet
         manufacturerId={id}
-        manufacturerName={manufacturer.name}
+        manufacturerName={manufacturer?.name ?? ""}
       />
     </div>
   );
