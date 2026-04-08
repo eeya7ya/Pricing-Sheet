@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { ChevronDown, Plus, Folder } from "lucide-react";
+import { useState, useMemo } from "react";
+import { ChevronDown, Plus, Folder, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Project {
@@ -26,8 +26,15 @@ export function ProjectSelector({
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState("");
 
   const selected = projects.find((p) => p.id === selectedId);
+
+  const filteredProjects = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return projects;
+    return projects.filter((p) => p.name.toLowerCase().includes(q));
+  }, [projects, search]);
 
   const handleCreate = async () => {
     if (!newName.trim()) return;
@@ -66,7 +73,7 @@ export function ProjectSelector({
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-50 mt-1.5 min-w-[220px] rounded-xl border border-gray-200 bg-white shadow-lg shadow-gray-200">
+        <div className="absolute left-0 top-full z-50 mt-1.5 min-w-[260px] rounded-xl border border-gray-200 bg-white shadow-lg shadow-gray-200">
           {/* Create new project option */}
           <div className="border-b border-gray-100 p-1">
             {creating ? (
@@ -105,19 +112,48 @@ export function ProjectSelector({
             )}
           </div>
 
+          {/* Local search */}
+          {projects.length > 3 && (
+            <div className="border-b border-gray-100 p-2">
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search projects…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full rounded-md border border-gray-200 bg-gray-50 py-1.5 pl-7 pr-7 text-xs text-gray-700 placeholder-gray-400 focus:border-cyan-400 focus:outline-none"
+                />
+                {search && (
+                  <button
+                    onClick={() => setSearch("")}
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-gray-400 hover:bg-gray-200 hover:text-gray-600"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Existing projects */}
           <div className="max-h-56 overflow-y-auto p-1">
             {projects.length === 0 ? (
               <p className="px-3 py-4 text-center text-xs text-gray-400">
                 No projects yet
               </p>
+            ) : filteredProjects.length === 0 ? (
+              <p className="px-3 py-4 text-center text-xs text-gray-400">
+                No matches for &ldquo;{search}&rdquo;
+              </p>
             ) : (
-              projects.map((p) => (
+              filteredProjects.map((p) => (
                 <button
                   key={p.id}
                   onClick={() => {
                     onSelect(p.id);
                     setOpen(false);
+                    setSearch("");
                   }}
                   className={cn(
                     "flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-colors",
@@ -148,6 +184,7 @@ export function ProjectSelector({
             setOpen(false);
             setCreating(false);
             setNewName("");
+            setSearch("");
           }}
         />
       )}

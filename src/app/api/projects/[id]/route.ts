@@ -111,6 +111,9 @@ export async function PUT(
             quantity: line.quantity ?? 1,
             shippingOverride: line.shippingOverride != null ? String(line.shippingOverride) : null,
             customsOverride: line.customsOverride != null ? String(line.customsOverride) : null,
+            shippingRateOverride: line.shippingRateOverride != null ? String(line.shippingRateOverride) : null,
+            customsRateOverride: line.customsRateOverride != null ? String(line.customsRateOverride) : null,
+            profitRateOverride: line.profitRateOverride != null ? String(line.profitRateOverride) : null,
           }))
         );
       }
