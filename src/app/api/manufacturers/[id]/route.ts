@@ -53,13 +53,30 @@ export async function PUT(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const { name } = await req.json();
-    if (!name?.trim()) {
-      return NextResponse.json({ error: "Name is required" }, { status: 400 });
+    const body = await req.json();
+    const { name, color, tag } = body ?? {};
+
+    const patch: Partial<{ name: string; color: string | null; tag: string | null }> = {};
+    if (typeof name === "string") {
+      if (!name.trim()) {
+        return NextResponse.json({ error: "Name is required" }, { status: 400 });
+      }
+      patch.name = name.trim();
     }
+    if (Object.prototype.hasOwnProperty.call(body ?? {}, "color")) {
+      patch.color = typeof color === "string" && color.trim() ? color.trim() : null;
+    }
+    if (Object.prototype.hasOwnProperty.call(body ?? {}, "tag")) {
+      patch.tag = typeof tag === "string" && tag.trim() ? tag.trim() : null;
+    }
+
+    if (Object.keys(patch).length === 0) {
+      return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
+    }
+
     const [updated] = await db
       .update(manufacturers)
-      .set({ name: name.trim() })
+      .set(patch)
       .where(and(eq(manufacturers.id, mfgId), isNull(manufacturers.deletedAt)))
       .returning();
     if (!updated) {
@@ -71,7 +88,10 @@ export async function PUT(
       action: "update",
       entityType: "manufacturer",
       entityId: mfgId,
-      details: { from: existing.name, to: updated.name },
+      details: {
+        from: { name: existing.name, color: existing.color, tag: existing.tag },
+        to: { name: updated.name, color: updated.color, tag: updated.tag },
+      },
       ipAddress: getClientIp(req),
     });
 

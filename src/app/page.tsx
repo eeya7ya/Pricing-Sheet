@@ -1,17 +1,22 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Plus, Factory, BarChart3, AlertCircle, Loader2 } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Plus, Factory, BarChart3, AlertCircle, Loader2, Tag as TagIcon } from "lucide-react";
 import { ManufacturerCard } from "@/components/ManufacturerCard";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
+import {
+  MANUFACTURER_COLORS,
+  DEFAULT_MANUFACTURER_COLOR,
+} from "@/lib/manufacturerColors";
 
 interface ManufacturerWithCount {
   id: number;
   name: string;
+  color: string | null;
+  tag: string | null;
   createdAt: string;
   createdByUserId: number | null;
-  createdByUserName: string | null;
   projectCount: number;
 }
 
@@ -23,10 +28,11 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
+  const [newTag, setNewTag] = useState("");
+  const [newColor, setNewColor] = useState<string>(DEFAULT_MANUFACTURER_COLOR.key);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState("all");
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -55,6 +61,12 @@ export default function DashboardPage() {
     loadData();
   }, [authLoading, user, loadData]);
 
+  const resetForm = () => {
+    setNewName("");
+    setNewTag("");
+    setNewColor(DEFAULT_MANUFACTURER_COLOR.key);
+  };
+
   const handleCreate = async () => {
     if (!newName.trim()) return;
     setSaving(true);
@@ -63,10 +75,14 @@ export default function DashboardPage() {
       const res = await fetch("/api/manufacturers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newName.trim() }),
+        body: JSON.stringify({
+          name: newName.trim(),
+          color: newColor,
+          tag: newTag.trim() || null,
+        }),
       });
       if (res.ok) {
-        setNewName("");
+        resetForm();
         setCreating(false);
         await loadData();
       } else {
@@ -82,7 +98,7 @@ export default function DashboardPage() {
 
   const handleCancel = () => {
     setCreating(false);
-    setNewName("");
+    resetForm();
     setError(null);
   };
 
@@ -96,33 +112,8 @@ export default function DashboardPage() {
     }
   };
 
-  // Admin-only "group by user" tabs
-  const userTabs = useMemo(() => {
-    if (!isAdmin) return [] as { id: string; label: string }[];
-    const seen = new Set<string>();
-    const tabs: { id: string; label: string }[] = [];
-    for (const m of items) {
-      if (m.createdByUserId && m.createdByUserName) {
-        const key = String(m.createdByUserId);
-        if (!seen.has(key)) {
-          seen.add(key);
-          tabs.push({ id: key, label: m.createdByUserName });
-        }
-      }
-    }
-    return tabs;
-  }, [isAdmin, items]);
-
-  const visibleItems = useMemo(
-    () =>
-      isAdmin && activeTab !== "all"
-        ? items.filter((m) => String(m.createdByUserId) === activeTab)
-        : items,
-    [isAdmin, activeTab, items]
-  );
-
   // Wait for the auth context before deciding what to show — prevents
-  // a flash of the empty state for non-admin users.
+  // a flash of the empty state.
   const showSpinner = authLoading || loading;
 
   return (
@@ -138,17 +129,15 @@ export default function DashboardPage() {
             Pricing Dashboard
           </h1>
           <p className="mt-2 text-sm text-gray-500">
-            {isAdmin
-              ? "Manage manufacturers and their smart pricing sheets"
-              : "Shared manufacturers — your projects inside are private to you"}
+            Manage manufacturers and their smart pricing sheets
           </p>
         </div>
 
         {/* Add manufacturer */}
         <div className="flex-shrink-0">
           {creating ? (
-            <div className="flex flex-col gap-2 items-end">
-              <div className="flex items-center gap-2">
+            <div className="flex flex-col gap-3 items-end">
+              <div className="flex flex-wrap items-center justify-end gap-2">
                 <input
                   autoFocus
                   type="text"
@@ -161,6 +150,45 @@ export default function DashboardPage() {
                   }}
                   className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-800 placeholder-gray-400 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/20 min-w-[200px]"
                 />
+                <div className="relative">
+                  <TagIcon className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Tag (optional)"
+                    value={newTag}
+                    onChange={(e) => setNewTag(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleCreate();
+                      if (e.key === "Escape") handleCancel();
+                    }}
+                    className="w-[160px] rounded-xl border border-gray-200 bg-white py-2.5 pl-9 pr-4 text-sm text-gray-800 placeholder-gray-400 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/20"
+                  />
+                </div>
+              </div>
+
+              {/* Color picker */}
+              <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2">
+                <span className="text-[11px] font-medium uppercase tracking-wide text-gray-400">
+                  Color
+                </span>
+                {MANUFACTURER_COLORS.map((c) => (
+                  <button
+                    type="button"
+                    key={c.key}
+                    title={c.label}
+                    onClick={() => setNewColor(c.key)}
+                    className={cn(
+                      "h-5 w-5 rounded-full border-2 transition-transform",
+                      c.dot,
+                      newColor === c.key
+                        ? "border-gray-900 scale-110"
+                        : "border-white hover:scale-110"
+                    )}
+                  />
+                ))}
+              </div>
+
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={handleCreate}
@@ -201,37 +229,6 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* User tabs (admin only) */}
-      {isAdmin && userTabs.length > 0 && (
-        <div className="mb-6 flex flex-wrap gap-2">
-          <button
-            onClick={() => setActiveTab("all")}
-            className={cn(
-              "rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
-              activeTab === "all"
-                ? "bg-cyan-500 text-white shadow-sm"
-                : "border border-gray-200 bg-white text-gray-600 hover:border-cyan-300 hover:text-cyan-700"
-            )}
-          >
-            All
-          </button>
-          {userTabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={cn(
-                "rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
-                activeTab === tab.id
-                  ? "bg-cyan-500 text-white shadow-sm"
-                  : "border border-gray-200 bg-white text-gray-600 hover:border-cyan-300 hover:text-cyan-700"
-              )}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      )}
-
       {/* Load error banner */}
       {loadError && (
         <div className="mb-4 flex items-start gap-2 rounded-xl border border-rose-100 bg-rose-50 px-4 py-3">
@@ -245,7 +242,7 @@ export default function DashboardPage() {
         <div className="flex h-64 items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-cyan-500" />
         </div>
-      ) : visibleItems.length === 0 ? (
+      ) : items.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-gray-200 bg-gray-50 py-24 text-center">
           <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-2xl bg-gray-100 ring-1 ring-gray-200">
             <Factory className="h-9 w-9 text-gray-400" />
@@ -254,9 +251,7 @@ export default function DashboardPage() {
             No manufacturers yet
           </h3>
           <p className="mb-7 text-sm text-gray-500">
-            {isAdmin
-              ? "Add your first manufacturer to get started"
-              : "Add a manufacturer to start building your pricing sheets"}
+            Add your first manufacturer to get started
           </p>
           <button
             type="button"
@@ -269,11 +264,13 @@ export default function DashboardPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {visibleItems.map((m) => (
+          {items.map((m) => (
             <div key={m.id} className="animate-fade-in">
               <ManufacturerCard
                 id={m.id}
                 name={m.name}
+                color={m.color}
+                tag={m.tag}
                 projectCount={m.projectCount}
                 onDelete={isAdmin ? handleDelete : undefined}
               />

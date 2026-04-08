@@ -10,9 +10,9 @@ const getSecret = () =>
   );
 
 // Pages accessible without auth
-const PUBLIC_PAGES = new Set(["/login", "/request-access", "/setup"]);
+const PUBLIC_PAGES = new Set(["/login"]);
 // API prefixes accessible without auth
-const PUBLIC_API_PREFIXES = ["/api/auth/", "/api/request-access", "/api/admin/setup"];
+const PUBLIC_API_PREFIXES = ["/api/auth/"];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -40,8 +40,7 @@ export async function middleware(request: NextRequest) {
     const { payload } = await jwtVerify(token, getSecret());
     const role = payload.role as string;
 
-    // Block non-admins from /admin pages and /api/admin routes
-    // (except /api/admin/setup which is in PUBLIC_API_PREFIXES).
+    // Block non-admins from /admin pages and /api/admin routes.
     if (pathname.startsWith("/admin") && role !== "admin") {
       return NextResponse.redirect(new URL("/", request.url));
     }

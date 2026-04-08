@@ -37,6 +37,9 @@ export function PricingSheet({ manufacturerId, manufacturerName }: Props) {
   const [targetCurrency, setTargetCurrency] = useState("JOD");
   const [sourceCurrency, setSourceCurrency] = useState("USD");
   const [rows, setRows] = useState<ProductRow[]>([]);
+  // Start in a loading state so we don't flash the "No project selected"
+  // empty state on first paint while the projects list is still in-flight.
+  const [projectsLoading, setProjectsLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
@@ -51,15 +54,20 @@ export function PricingSheet({ manufacturerId, manufacturerName }: Props) {
 
   // Load projects list — only re-runs when manufacturerId changes
   const loadProjects = useCallback(async () => {
-    const res = await fetch(`/api/projects?manufacturerId=${manufacturerId}`);
-    if (res.ok) {
-      const data: Project[] = await res.json();
-      setProjects(data);
-      // Auto-select first project on initial load only
-      if (!initialSelectDone.current && data.length > 0) {
-        initialSelectDone.current = true;
-        setSelectedProjectId(data[0].id);
+    setProjectsLoading(true);
+    try {
+      const res = await fetch(`/api/projects?manufacturerId=${manufacturerId}`);
+      if (res.ok) {
+        const data: Project[] = await res.json();
+        setProjects(data);
+        // Auto-select first project on initial load only
+        if (!initialSelectDone.current && data.length > 0) {
+          initialSelectDone.current = true;
+          setSelectedProjectId(data[0].id);
+        }
       }
+    } finally {
+      setProjectsLoading(false);
     }
   }, [manufacturerId]);
 
@@ -330,7 +338,11 @@ export function PricingSheet({ manufacturerId, manufacturerName }: Props) {
         </div>
       </div>
 
-      {!selectedProjectId ? (
+      {projectsLoading || loading ? (
+        <div className="flex h-48 items-center justify-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-200 border-t-cyan-500" />
+        </div>
+      ) : !selectedProjectId ? (
         <div className="flex h-48 items-center justify-center rounded-xl border border-dashed border-gray-300">
           <div className="text-center">
             <p className="text-sm text-gray-500">No project selected</p>
@@ -338,10 +350,6 @@ export function PricingSheet({ manufacturerId, manufacturerName }: Props) {
               Use the dropdown above to select or create a project
             </p>
           </div>
-        </div>
-      ) : loading ? (
-        <div className="flex h-48 items-center justify-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-200 border-t-cyan-500" />
         </div>
       ) : (
         <>

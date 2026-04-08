@@ -7,7 +7,6 @@ import {
   Calculator,
   GitCompare,
   Home,
-  UserPlus,
   ShieldCheck,
   LogOut,
   User,
@@ -29,7 +28,6 @@ export function Navigation() {
   };
 
   const navLinks = [
-    { href: "/request-access", label: "Request Access", icon: UserPlus, publicOnly: true },
     { href: "/", label: "Dashboard", icon: Home, authed: true },
     { href: "/compare", label: "Compare", icon: GitCompare, adminOnly: true },
     { href: "/admin", label: "Admin", icon: ShieldCheck, adminOnly: true },
@@ -37,7 +35,6 @@ export function Navigation() {
   ] as const;
 
   const visibleLinks = navLinks.filter((link) => {
-    if ("publicOnly" in link && link.publicOnly) return !user;
     if ("adminOnly" in link && link.adminOnly) return user?.role === "admin";
     if ("authed" in link && link.authed) return !!user;
     return true;
@@ -62,7 +59,6 @@ export function Navigation() {
             {visibleLinks.map(({ href, label, icon: Icon }) => {
               const isActive =
                 href === "/" ? pathname === "/" : pathname.startsWith(href);
-              const isRequestAccess = href === "/request-access";
               return (
                 <Link
                   key={href}
@@ -70,9 +66,7 @@ export function Navigation() {
                   prefetch
                   className={cn(
                     "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-                    isRequestAccess && !isActive
-                      ? "text-cyan-600 hover:bg-cyan-50 hover:text-cyan-700"
-                      : isActive
+                    isActive
                       ? "bg-gray-100 text-gray-900"
                       : "text-gray-500 hover:bg-gray-100 hover:text-gray-800"
                   )}
