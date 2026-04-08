@@ -5,12 +5,11 @@ import { db } from "@/lib/db";
 import { manufacturers, projects } from "@/db/schema";
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth";
-import { ensureSchema, consolidateToAdmin } from "@/lib/ensureSchema";
+import { ensureSchema } from "@/lib/ensureSchema";
 import { logAudit, getClientIp } from "@/lib/audit";
 
 export async function GET() {
   await ensureSchema();
-  await consolidateToAdmin();
 
   try {
     const user = await getCurrentUser();
@@ -76,8 +75,28 @@ export async function GET() {
       countMap.set(row.manufacturerId, Number(row.count));
     }
 
+    // Attach creator names (admin uses these for the "group by user" tabs).
+    const creatorIds = [
+      ...new Set(
+        all
+          .map((m) => m.createdByUserId)
+          .filter((id): id is number => id !== null)
+      ),
+    ];
+    const creators = creatorIds.length > 0
+      ? await db.query.users.findMany({
+          where: (u, { inArray }) => inArray(u.id, creatorIds),
+        })
+      : [];
+    const creatorMap = Object.fromEntries(
+      creators.map((u) => [u.id, u.fullName])
+    );
+
     const result = all.map((m) => ({
       ...m,
+      createdByUserName: m.createdByUserId
+        ? creatorMap[m.createdByUserId] ?? null
+        : null,
       projectCount: countMap.get(m.id) ?? 0,
     }));
     return NextResponse.json(result);

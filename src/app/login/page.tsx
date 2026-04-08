@@ -11,7 +11,7 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const { refresh } = useAuth();
 
-  const [identifier, setIdentifier] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -20,7 +20,7 @@ function LoginForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (!identifier.trim() || !password) {
+    if (!username.trim() || !password) {
       setError("Please enter your username and password.");
       return;
     }
@@ -29,9 +29,7 @@ function LoginForm() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        // The server accepts either an email or a plain username
-        // (e.g. "admin"). It's normalized to lowercase server-side.
-        body: JSON.stringify({ email: identifier.trim(), password }),
+        body: JSON.stringify({ username: username.trim(), password }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -67,19 +65,19 @@ function LoginForm() {
         {/* Card */}
         <div className="rounded-3xl border border-gray-200 bg-white p-8 shadow-sm">
           <form onSubmit={handleSubmit} className="space-y-5" noValidate>
-            {/* Username / email */}
+            {/* Username */}
             <div>
               <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                Username or email
+                Username
               </label>
               <div className="relative">
                 <User className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                 <input
                   type="text"
                   autoComplete="username"
-                  value={identifier}
-                  onChange={(e) => setIdentifier(e.target.value)}
-                  placeholder="admin or you@company.com"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="admin"
                   className={cn(
                     "w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 pl-10 pr-4 text-sm text-gray-800 placeholder-gray-400",
                     "focus:border-cyan-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-cyan-400/20 transition-colors"

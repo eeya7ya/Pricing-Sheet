@@ -4,7 +4,7 @@ import type { AuthUser } from "./auth";
 
 export interface AuditEntry {
   actor?: AuthUser | null;
-  actorEmail?: string | null;
+  actorUsername?: string | null;
   actorName?: string | null;
   action: string;
   entityType?: string | null;
@@ -16,7 +16,8 @@ export interface AuditEntry {
 /**
  * Fire-and-forget audit log writer. Never throws — logging must not
  * break the user-facing request. Pass `actor` when you have an
- * authenticated user, or `actorEmail` for anonymous actions (login attempts).
+ * authenticated user, or `actorUsername` for anonymous actions
+ * (login attempts).
  */
 export async function logAudit(entry: AuditEntry): Promise<void> {
   try {
@@ -29,7 +30,7 @@ export async function logAudit(entry: AuditEntry): Promise<void> {
 
     await db.insert(auditLogs).values({
       actorUserId: entry.actor?.id ?? null,
-      actorEmail: entry.actor?.email ?? entry.actorEmail ?? null,
+      actorUsername: entry.actor?.username ?? entry.actorUsername ?? null,
       actorName: entry.actor?.fullName ?? entry.actorName ?? null,
       action: entry.action,
       entityType: entry.entityType ?? null,

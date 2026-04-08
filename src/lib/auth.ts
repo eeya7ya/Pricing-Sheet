@@ -11,7 +11,7 @@ const getSecret = () =>
 
 export interface AuthUser {
   id: number;
-  email: string;
+  username: string;
   fullName: string;
   role: "admin" | "user";
   manufacturerId: number | null;
@@ -20,7 +20,7 @@ export interface AuthUser {
 export async function signToken(user: AuthUser): Promise<string> {
   return new SignJWT({
     id: user.id,
-    email: user.email,
+    username: user.username,
     fullName: user.fullName,
     role: user.role,
     manufacturerId: user.manufacturerId,
@@ -34,9 +34,15 @@ export async function signToken(user: AuthUser): Promise<string> {
 export async function verifyToken(token: string): Promise<AuthUser | null> {
   try {
     const { payload } = await jwtVerify(token, getSecret());
+    // Older tokens stored the handle under "email" — fall back so
+    // existing sessions keep working after the rename.
+    const username =
+      (payload.username as string | undefined) ??
+      (payload.email as string | undefined) ??
+      "";
     return {
       id: payload.id as number,
-      email: payload.email as string,
+      username,
       fullName: payload.fullName as string,
       role: payload.role as "admin" | "user",
       manufacturerId: (payload.manufacturerId as number) ?? null,

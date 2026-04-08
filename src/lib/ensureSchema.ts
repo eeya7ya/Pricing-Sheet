@@ -5,7 +5,6 @@ import { hashPassword } from "./auth";
 
 let ensuredSchema = false;
 let ensuredAdmin = false;
-let consolidatedToAdmin = false;
 
 /**
  * Idempotently creates/alters tables that are added to the schema after
@@ -55,6 +54,38 @@ export async function ensureSchema() {
       ADD COLUMN IF NOT EXISTS tag TEXT
     `);
 
+    // users.email -> users.username migration. This app is now
+    // username-only (no email). The rename is idempotent: if the
+    // username column already exists we skip, otherwise we rename.
+    await db.execute(sql`
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'users' AND column_name = 'email'
+        ) AND NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'users' AND column_name = 'username'
+        ) THEN
+          ALTER TABLE users RENAME COLUMN email TO username;
+        END IF;
+      END $$;
+    `);
+    // If the original table pre-dates the rename, the unique index was
+    // named users_email_key — rename it too so it lines up with the
+    // column. Safe to run repeatedly.
+    await db.execute(sql`
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 FROM pg_indexes
+          WHERE tablename = 'users' AND indexname = 'users_email_key'
+        ) THEN
+          ALTER INDEX users_email_key RENAME TO users_username_key;
+        END IF;
+      END $$;
+    `);
+
     ensuredSchema = true;
   } catch (e) {
     console.error("[ensureSchema] failed:", e);
@@ -63,19 +94,18 @@ export async function ensureSchema() {
 
 /**
  * Ensures a hardcoded "admin" login exists with password "admin123".
- * The username is intentionally the literal string "admin" (not an email)
- * so admins can sign in quickly. On first call, creates or repairs the row.
+ * On first call creates or repairs the row.
  */
 export async function ensureAdminUser() {
   if (ensuredAdmin) return;
   try {
     const admin = await db.query.users.findFirst({
-      where: (u, { eq }) => eq(u.email, "admin"),
+      where: (u, { eq }) => eq(u.username, "admin"),
     });
     if (!admin) {
       const passwordHash = await hashPassword("admin123");
       await db.insert(users).values({
-        email: "admin",
+        username: "admin",
         passwordHash,
         fullName: "Administrator",
         role: "admin",
@@ -89,48 +119,5 @@ export async function ensureAdminUser() {
     ensuredAdmin = true;
   } catch (e) {
     console.error("[ensureAdminUser] failed:", e);
-  }
-}
-
-/**
- * One-time data consolidation: this app is now single-tenant (admin only).
- * Every manufacturer and project is reassigned to the admin account, and
- * every non-admin user / pending account request is removed. Guarded by a
- * module-level flag so it runs at most once per server process; the writes
- * themselves are idempotent so re-running is safe.
- */
-export async function consolidateToAdmin() {
-  if (consolidatedToAdmin) return;
-  try {
-    await ensureSchema();
-    await ensureAdminUser();
-
-    const admin = await db.query.users.findFirst({
-      where: (u, { eq }) => eq(u.email, "admin"),
-    });
-    if (!admin) {
-      console.error("[consolidateToAdmin] admin user missing, aborting");
-      return;
-    }
-
-    // Reassign ownership of every row to the admin account.
-    await db.execute(
-      sql`UPDATE manufacturers SET created_by_user_id = ${admin.id} WHERE created_by_user_id IS DISTINCT FROM ${admin.id}`
-    );
-    await db.execute(
-      sql`UPDATE projects SET user_id = ${admin.id} WHERE user_id IS DISTINCT FROM ${admin.id}`
-    );
-
-    // Drop every other user. manufacturers.created_by_user_id has no FK
-    // constraint, and projects.user_id / users.manufacturer_id are both
-    // ON DELETE SET NULL, but we've already reassigned so nothing nulls.
-    await db.execute(sql`DELETE FROM users WHERE id <> ${admin.id}`);
-
-    // Pending account requests no longer make sense in single-tenant mode.
-    await db.execute(sql`DELETE FROM account_requests`);
-
-    consolidatedToAdmin = true;
-  } catch (e) {
-    console.error("[consolidateToAdmin] failed:", e);
   }
 }

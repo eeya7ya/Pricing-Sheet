@@ -105,7 +105,7 @@ export function Navigation() {
                       <p className="text-xs font-semibold text-gray-800 truncate">
                         {user.fullName}
                       </p>
-                      <p className="text-xs text-gray-400 truncate">{user.email}</p>
+                      <p className="text-xs text-gray-400 truncate">@{user.username}</p>
                       <span
                         className={cn(
                           "mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold",
