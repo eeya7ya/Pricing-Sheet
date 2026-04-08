@@ -26,7 +26,9 @@ export const manufacturers = pgTable("manufacturers", {
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
-  email: text("email").notNull().unique(),
+  // Short human-friendly login handle ("admin", "raghad"...). This app
+  // is intentionally username-only — no email field.
+  username: text("username").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
   fullName: text("full_name").notNull(),
   role: text("role").notNull().default("user"), // 'admin' | 'user'
@@ -89,7 +91,9 @@ export const accountRequests = pgTable("account_requests", {
 export const auditLogs = pgTable("audit_logs", {
   id: serial("id").primaryKey(),
   actorUserId: integer("actor_user_id"),
-  actorEmail: text("actor_email"),
+  // DB column is still "actor_email" for historical reasons; exposed
+  // as actorUsername at the TS level.
+  actorUsername: text("actor_email"),
   actorName: text("actor_name"),
   action: text("action").notNull(), // e.g. "login", "login_failed", "logout", "create", "update", "delete"
   entityType: text("entity_type"), // e.g. "manufacturer", "project", "user"

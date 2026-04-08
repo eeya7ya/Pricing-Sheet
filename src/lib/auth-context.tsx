@@ -12,7 +12,7 @@ import {
 
 export interface AuthUser {
   id: number;
-  email: string;
+  username: string;
   fullName: string;
   role: "admin" | "user";
   manufacturerId: number | null;

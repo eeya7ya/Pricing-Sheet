@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Plus, Factory, BarChart3, AlertCircle, Loader2, Tag as TagIcon } from "lucide-react";
 import { ManufacturerCard } from "@/components/ManufacturerCard";
 import { cn } from "@/lib/utils";
@@ -17,6 +17,7 @@ interface ManufacturerWithCount {
   tag: string | null;
   createdAt: string;
   createdByUserId: number | null;
+  createdByUserName: string | null;
   projectCount: number;
 }
 
@@ -33,6 +34,7 @@ export default function DashboardPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("all");
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -112,6 +114,31 @@ export default function DashboardPage() {
     }
   };
 
+  // Admin-only "group by user" tabs
+  const userTabs = useMemo(() => {
+    if (!isAdmin) return [] as { id: string; label: string }[];
+    const seen = new Set<string>();
+    const tabs: { id: string; label: string }[] = [];
+    for (const m of items) {
+      if (m.createdByUserId && m.createdByUserName) {
+        const key = String(m.createdByUserId);
+        if (!seen.has(key)) {
+          seen.add(key);
+          tabs.push({ id: key, label: m.createdByUserName });
+        }
+      }
+    }
+    return tabs;
+  }, [isAdmin, items]);
+
+  const visibleItems = useMemo(
+    () =>
+      isAdmin && activeTab !== "all"
+        ? items.filter((m) => String(m.createdByUserId) === activeTab)
+        : items,
+    [isAdmin, activeTab, items]
+  );
+
   // Wait for the auth context before deciding what to show — prevents
   // a flash of the empty state.
   const showSpinner = authLoading || loading;
@@ -129,7 +156,9 @@ export default function DashboardPage() {
             Pricing Dashboard
           </h1>
           <p className="mt-2 text-sm text-gray-500">
-            Manage manufacturers and their smart pricing sheets
+            {isAdmin
+              ? "Manage manufacturers and their smart pricing sheets"
+              : "Shared manufacturers — your projects inside are private to you"}
           </p>
         </div>
 
@@ -229,6 +258,37 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* User tabs (admin only) */}
+      {isAdmin && userTabs.length > 0 && (
+        <div className="mb-6 flex flex-wrap gap-2">
+          <button
+            onClick={() => setActiveTab("all")}
+            className={cn(
+              "rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
+              activeTab === "all"
+                ? "bg-cyan-500 text-white shadow-sm"
+                : "border border-gray-200 bg-white text-gray-600 hover:border-cyan-300 hover:text-cyan-700"
+            )}
+          >
+            All
+          </button>
+          {userTabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                "rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
+                activeTab === tab.id
+                  ? "bg-cyan-500 text-white shadow-sm"
+                  : "border border-gray-200 bg-white text-gray-600 hover:border-cyan-300 hover:text-cyan-700"
+              )}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Load error banner */}
       {loadError && (
         <div className="mb-4 flex items-start gap-2 rounded-xl border border-rose-100 bg-rose-50 px-4 py-3">
@@ -242,7 +302,7 @@ export default function DashboardPage() {
         <div className="flex h-64 items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-cyan-500" />
         </div>
-      ) : items.length === 0 ? (
+      ) : visibleItems.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-gray-200 bg-gray-50 py-24 text-center">
           <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-2xl bg-gray-100 ring-1 ring-gray-200">
             <Factory className="h-9 w-9 text-gray-400" />
@@ -264,7 +324,7 @@ export default function DashboardPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {items.map((m) => (
+          {visibleItems.map((m) => (
             <div key={m.id} className="animate-fade-in">
               <ManufacturerCard
                 id={m.id}

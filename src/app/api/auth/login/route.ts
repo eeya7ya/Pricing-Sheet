@@ -3,40 +3,40 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { signToken, comparePassword, COOKIE_NAME, type AuthUser } from "@/lib/auth";
-import { ensureSchema, ensureAdminUser, consolidateToAdmin } from "@/lib/ensureSchema";
+import { ensureSchema, ensureAdminUser } from "@/lib/ensureSchema";
 import { logAudit, getClientIp } from "@/lib/audit";
 
 export async function POST(req: Request) {
   // Make sure the admin account exists and audit_logs table is ready
-  // before we try to authenticate anyone. consolidateToAdmin() is
-  // idempotent and only runs meaningful work once per process: it
-  // reassigns every legacy row to the admin account and removes any
-  // other users left over from the multi-tenant era.
+  // before we try to authenticate anyone.
   await ensureSchema();
   await ensureAdminUser();
-  await consolidateToAdmin();
 
   const ip = getClientIp(req);
 
   try {
-    const { email, password } = await req.json();
+    const body = await req.json();
+    // Accept { username } going forward, but keep { email } as a
+    // compatibility alias so older clients keep working during rollout.
+    const rawIdentifier: string | undefined = body?.username ?? body?.email;
+    const password: string | undefined = body?.password;
 
-    if (!email?.trim() || !password) {
+    if (!rawIdentifier?.trim() || !password) {
       return NextResponse.json(
         { error: "Username and password are required." },
         { status: 400 }
       );
     }
 
-    const normalized = email.trim().toLowerCase();
+    const normalized = rawIdentifier.trim().toLowerCase();
 
     const user = await db.query.users.findFirst({
-      where: (u, { eq }) => eq(u.email, normalized),
+      where: (u, { eq }) => eq(u.username, normalized),
     });
 
     if (!user) {
       await logAudit({
-        actorEmail: normalized,
+        actorUsername: normalized,
         action: "login_failed",
         details: { reason: "user_not_found" },
         ipAddress: ip,
@@ -50,7 +50,7 @@ export async function POST(req: Request) {
     const valid = await comparePassword(password, user.passwordHash);
     if (!valid) {
       await logAudit({
-        actorEmail: user.email,
+        actorUsername: user.username,
         actorName: user.fullName,
         action: "login_failed",
         details: { reason: "bad_password" },
@@ -64,7 +64,7 @@ export async function POST(req: Request) {
 
     const authUser: AuthUser = {
       id: user.id,
-      email: user.email,
+      username: user.username,
       fullName: user.fullName,
       role: user.role as "admin" | "user",
       manufacturerId: user.manufacturerId ?? null,

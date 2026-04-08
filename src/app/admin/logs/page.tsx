@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 interface AuditLog {
   id: number;
   actorUserId: number | null;
-  actorEmail: string | null;
+  actorUsername: string | null;
   actorName: string | null;
   action: string;
   entityType: string | null;
@@ -61,7 +61,7 @@ export default function AdminLogsPage() {
         const q = query.toLowerCase();
         return (
           l.action.toLowerCase().includes(q) ||
-          (l.actorEmail ?? "").toLowerCase().includes(q) ||
+          (l.actorUsername ?? "").toLowerCase().includes(q) ||
           (l.actorName ?? "").toLowerCase().includes(q) ||
           (l.entityType ?? "").toLowerCase().includes(q) ||
           (l.details ?? "").toLowerCase().includes(q)
@@ -155,7 +155,7 @@ export default function AdminLogsPage() {
                           {l.actorName ?? "—"}
                         </div>
                         <div className="truncate text-xs text-gray-400">
-                          {l.actorEmail ?? "anonymous"}
+                          {l.actorUsername ?? "anonymous"}
                         </div>
                       </div>
                     </div>
