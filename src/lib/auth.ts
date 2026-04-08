@@ -14,6 +14,7 @@ export interface AuthUser {
   username: string;
   fullName: string;
   role: "admin" | "user";
+  color: string;
   manufacturerId: number | null;
 }
 
@@ -23,6 +24,7 @@ export async function signToken(user: AuthUser): Promise<string> {
     username: user.username,
     fullName: user.fullName,
     role: user.role,
+    color: user.color,
     manufacturerId: user.manufacturerId,
   })
     .setProtectedHeader({ alg: "HS256" })
@@ -45,6 +47,9 @@ export async function verifyToken(token: string): Promise<AuthUser | null> {
       username,
       fullName: payload.fullName as string,
       role: payload.role as "admin" | "user",
+      // Older tokens won't carry a color — fall back to the default
+      // accent so existing sessions keep working.
+      color: (payload.color as string | undefined) ?? "cyan",
       manufacturerId: (payload.manufacturerId as number) ?? null,
     };
   } catch {

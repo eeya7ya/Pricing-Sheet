@@ -15,6 +15,7 @@ export interface AuthUser {
   username: string;
   fullName: string;
   role: "admin" | "user";
+  color: string;
   manufacturerId: number | null;
 }
 

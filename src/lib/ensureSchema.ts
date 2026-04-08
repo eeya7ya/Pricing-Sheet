@@ -54,6 +54,13 @@ export async function ensureSchema() {
       ADD COLUMN IF NOT EXISTS tag TEXT
     `);
 
+    // users.color — per-user accent color, set once at account creation
+    // and reused for every manufacturer they create.
+    await db.execute(sql`
+      ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS color TEXT NOT NULL DEFAULT 'cyan'
+    `);
+
     // users.email -> users.username migration. This app is now
     // username-only (no email). The rename is idempotent: if the
     // username column already exists we skip, otherwise we rename.

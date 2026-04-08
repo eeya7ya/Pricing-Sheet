@@ -132,14 +132,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { name, color } = await req.json();
+    const { name } = await req.json();
     if (!name?.trim()) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
     }
-    if (!color?.trim()) {
-      return NextResponse.json({ error: "Color is required" }, { status: 400 });
-    }
-    // Tag is always the user's username — automatic, not user-supplied.
+    // Color comes from the user's profile (set once at account creation).
+    // Tag is always the user's username.
+    const color = user.color ?? "cyan";
     const tag = user.username;
 
     // Find or create the global manufacturer by name.

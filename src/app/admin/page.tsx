@@ -16,6 +16,10 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  MANUFACTURER_COLORS,
+  DEFAULT_MANUFACTURER_COLOR,
+} from "@/lib/manufacturerColors";
 
 interface Manufacturer {
   id: number;
@@ -35,6 +39,7 @@ interface CreateForm {
   username: string;
   password: string;
   fullName: string;
+  color: string;
   manufacturerMode: "none" | "existing" | "new";
   manufacturerId: string;
   manufacturerName: string;
@@ -44,6 +49,7 @@ const EMPTY_FORM: CreateForm = {
   username: "",
   password: "",
   fullName: "",
+  color: DEFAULT_MANUFACTURER_COLOR.key,
   manufacturerMode: "none",
   manufacturerId: "",
   manufacturerName: "",
@@ -94,6 +100,7 @@ export default function AdminPage() {
         username: form.username,
         password: form.password,
         fullName: form.fullName,
+        color: form.color,
       };
 
       if (form.manufacturerMode === "existing" && form.manufacturerId) {
@@ -352,6 +359,33 @@ export default function AdminPage() {
                   required
                   className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800 font-mono focus:border-cyan-400 focus:bg-white focus:outline-none"
                 />
+              </div>
+
+              {/* Accent color */}
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-600">
+                  Accent Color
+                </label>
+                <div className="flex flex-wrap items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2">
+                  {MANUFACTURER_COLORS.map((c) => (
+                    <button
+                      type="button"
+                      key={c.key}
+                      title={c.label}
+                      onClick={() => setForm((f) => ({ ...f, color: c.key }))}
+                      className={cn(
+                        "h-5 w-5 rounded-full border-2 transition-transform",
+                        c.dot,
+                        form.color === c.key
+                          ? "border-gray-900 scale-110"
+                          : "border-white hover:scale-110"
+                      )}
+                    />
+                  ))}
+                </div>
+                <p className="mt-1 text-[11px] text-gray-400">
+                  Used as the visual accent for everything this user creates.
+                </p>
               </div>
 
               {/* Manufacturer (optional) */}

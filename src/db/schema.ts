@@ -32,6 +32,11 @@ export const users = pgTable("users", {
   passwordHash: text("password_hash").notNull(),
   fullName: text("full_name").notNull(),
   role: text("role").notNull().default("user"), // 'admin' | 'user'
+  // Visual accent color for everything this user creates (their
+  // manufacturer cards, tags, etc.). Set once at account creation and
+  // reused from then on. See src/lib/manufacturerColors.ts for the
+  // palette.
+  color: text("color").notNull().default("cyan"),
   manufacturerId: integer("manufacturer_id").references(
     () => manufacturers.id,
     { onDelete: "set null" }

@@ -5,6 +5,9 @@ import { db } from "@/lib/db";
 import { users, manufacturers } from "@/db/schema";
 import { getCurrentUser, hashPassword } from "@/lib/auth";
 import { logAudit, getClientIp } from "@/lib/audit";
+import { MANUFACTURER_COLORS } from "@/lib/manufacturerColors";
+
+const VALID_COLOR_KEYS = new Set(MANUFACTURER_COLORS.map((c) => c.key));
 
 export async function GET() {
   try {
@@ -39,6 +42,7 @@ export async function POST(req: Request) {
       username,
       password,
       fullName,
+      color,            // optional accent color key; defaults to "cyan"
       manufacturerId,   // optional existing manufacturer id
       manufacturerName, // optional: create a new manufacturer to assign
     } = body ?? {};
@@ -49,6 +53,10 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
+
+    // Color is optional but, if provided, must match a known palette key.
+    const normalizedColor: string =
+      typeof color === "string" && VALID_COLOR_KEYS.has(color) ? color : "cyan";
 
     // Usernames are ascii, lowercase, 3-32 chars, letters/digits/._-
     const normalized = String(username).trim().toLowerCase();
@@ -90,6 +98,7 @@ export async function POST(req: Request) {
         passwordHash,
         fullName: String(fullName).trim(),
         role: "user",
+        color: normalizedColor,
         manufacturerId: mfgId,
       })
       .returning();
@@ -102,6 +111,7 @@ export async function POST(req: Request) {
       details: {
         username: user.username,
         fullName: user.fullName,
+        color: user.color,
         manufacturerId: mfgId,
       },
       ipAddress: getClientIp(req),
