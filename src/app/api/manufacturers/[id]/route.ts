@@ -25,6 +25,10 @@ export async function GET(
     if (!manufacturer) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
+    // Non-admins can only access their own manufacturers.
+    if (user.role !== "admin" && manufacturer.createdByUserId !== user.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
     return NextResponse.json(manufacturer);
   } catch (error) {
     console.error(error);
