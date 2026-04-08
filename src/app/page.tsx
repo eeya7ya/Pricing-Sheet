@@ -12,8 +12,11 @@ interface ManufacturerWithCount {
   color: string | null;
   tag: string | null;
   createdAt: string;
-  createdByUserId: number | null;
-  createdByUserName: string | null;
+  // The user this card belongs to. For admin, the dashboard shows one
+  // card per (user, manufacturer) pair so the same brand can appear
+  // multiple times — once per owning user.
+  ownerUserId: number | null;
+  ownerUserName: string | null;
   projectCount: number;
 }
 
@@ -102,17 +105,17 @@ export default function DashboardPage() {
     }
   };
 
-  // Admin-only "group by user" tabs
+  // Admin-only "group by user" tabs — one tab per owning user.
   const userTabs = useMemo(() => {
     if (!isAdmin) return [] as { id: string; label: string }[];
     const seen = new Set<string>();
     const tabs: { id: string; label: string }[] = [];
     for (const m of items) {
-      if (m.createdByUserId && m.createdByUserName) {
-        const key = String(m.createdByUserId);
+      if (m.ownerUserId && m.ownerUserName) {
+        const key = String(m.ownerUserId);
         if (!seen.has(key)) {
           seen.add(key);
-          tabs.push({ id: key, label: m.createdByUserName });
+          tabs.push({ id: key, label: m.ownerUserName });
         }
       }
     }
@@ -122,7 +125,7 @@ export default function DashboardPage() {
   const visibleItems = useMemo(
     () =>
       isAdmin && activeTab !== "all"
-        ? items.filter((m) => String(m.createdByUserId) === activeTab)
+        ? items.filter((m) => String(m.ownerUserId) === activeTab)
         : items,
     [isAdmin, activeTab, items]
   );
@@ -277,7 +280,9 @@ export default function DashboardPage() {
       ) : (
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {visibleItems.map((m) => (
-            <div key={m.id} className="animate-fade-in">
+            // Admin can see the same manufacturer multiple times (once per
+            // owning user), so the key combines manufacturer + owner.
+            <div key={`${m.id}-${m.ownerUserId ?? "none"}`} className="animate-fade-in">
               <ManufacturerCard
                 id={m.id}
                 name={m.name}
