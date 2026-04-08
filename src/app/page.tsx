@@ -70,7 +70,7 @@ export default function DashboardPage() {
   };
 
   const handleCreate = async () => {
-    if (!newName.trim()) return;
+    if (!newName.trim() || !newTag.trim()) return;
     setSaving(true);
     setError(null);
     try {
@@ -158,7 +158,7 @@ export default function DashboardPage() {
           <p className="mt-2 text-sm text-gray-500">
             {isAdmin
               ? "Manage manufacturers and their smart pricing sheets"
-              : "Your manufacturers and projects are private to you"}
+              : "Your manufacturers — color and tag are yours alone"}
           </p>
         </div>
 
@@ -183,7 +183,7 @@ export default function DashboardPage() {
                   <TagIcon className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
                   <input
                     type="text"
-                    placeholder="Tag (optional)"
+                    placeholder="Tag / code…"
                     value={newTag}
                     onChange={(e) => setNewTag(e.target.value)}
                     onKeyDown={(e) => {
@@ -221,7 +221,7 @@ export default function DashboardPage() {
                 <button
                   type="button"
                   onClick={handleCreate}
-                  disabled={!newName.trim() || saving}
+                  disabled={!newName.trim() || !newTag.trim() || saving}
                   className="rounded-xl bg-cyan-500 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-cyan-400 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
                 >
                   {saving ? "Adding…" : "Add"}

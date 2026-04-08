@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { manufacturers } from "@/db/schema";
+import { manufacturers, userManufacturers } from "@/db/schema";
 import { eq, isNull, and } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth";
 import { logAudit, getClientIp } from "@/lib/audit";
@@ -19,16 +19,33 @@ export async function GET(
     const mfgId = parseInt(id);
 
     const manufacturer = await db.query.manufacturers.findFirst({
-      where: (m, { eq, isNull, and }) =>
-        and(eq(m.id, mfgId), isNull(m.deletedAt)),
+      where: (m, { eq, isNull, and }) => and(eq(m.id, mfgId), isNull(m.deletedAt)),
     });
     if (!manufacturer) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
-    // Non-admins can only access their own manufacturers.
-    if (user.role !== "admin" && manufacturer.createdByUserId !== user.id) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+    if (user.role !== "admin") {
+      // Non-admins must have a user_manufacturers entry for this manufacturer.
+      const userMfg = await db.query.userManufacturers.findFirst({
+        where: (um, { eq, and, isNull }) =>
+          and(
+            eq(um.userId, user.id),
+            eq(um.manufacturerId, mfgId),
+            isNull(um.deletedAt)
+          ),
+      });
+      if (!userMfg) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+      // Return manufacturer with the user's own color/tag.
+      return NextResponse.json({
+        ...manufacturer,
+        color: userMfg.color,
+        tag: userMfg.tag,
+      });
     }
+
     return NextResponse.json(manufacturer);
   } catch (error) {
     console.error(error);
@@ -52,14 +69,66 @@ export async function PUT(
     });
     if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-    // Only admins or the creator can rename a shared manufacturer.
-    if (user.role !== "admin" && existing.createdByUserId !== user.id) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
     const body = await req.json();
     const { name, color, tag } = body ?? {};
 
+    if (user.role !== "admin") {
+      // Non-admins update their user_manufacturers entry (color, tag).
+      // They may also rename if they created the manufacturer.
+      const userMfg = await db.query.userManufacturers.findFirst({
+        where: (um, { eq, and, isNull }) =>
+          and(
+            eq(um.userId, user.id),
+            eq(um.manufacturerId, mfgId),
+            isNull(um.deletedAt)
+          ),
+      });
+      if (!userMfg) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+
+      const umPatch: Partial<{ color: string; tag: string }> = {};
+      if (typeof color === "string" && color.trim()) umPatch.color = color.trim();
+      if (typeof tag === "string" && tag.trim()) umPatch.tag = tag.trim();
+
+      let updatedUserMfg = userMfg;
+      if (Object.keys(umPatch).length > 0) {
+        const [u] = await db
+          .update(userManufacturers)
+          .set(umPatch)
+          .where(eq(userManufacturers.id, userMfg.id))
+          .returning();
+        updatedUserMfg = u;
+      }
+
+      // Allow renaming only if this user created the manufacturer.
+      let updatedMfg = existing;
+      if (typeof name === "string" && name.trim() && existing.createdByUserId === user.id) {
+        const [u] = await db
+          .update(manufacturers)
+          .set({ name: name.trim() })
+          .where(and(eq(manufacturers.id, mfgId), isNull(manufacturers.deletedAt)))
+          .returning();
+        if (u) updatedMfg = u;
+      }
+
+      await logAudit({
+        actor: user,
+        action: "update",
+        entityType: "manufacturer",
+        entityId: mfgId,
+        details: { color: updatedUserMfg.color, tag: updatedUserMfg.tag },
+        ipAddress: getClientIp(req),
+      });
+
+      return NextResponse.json({
+        ...updatedMfg,
+        color: updatedUserMfg.color,
+        tag: updatedUserMfg.tag,
+      });
+    }
+
+    // Admin: update the global manufacturer record.
     const patch: Partial<{ name: string; color: string | null; tag: string | null }> = {};
     if (typeof name === "string") {
       if (!name.trim()) {
@@ -119,7 +188,7 @@ export async function DELETE(
     const { id } = await params;
     const mfgId = parseInt(id);
 
-    // Soft delete
+    // Soft delete the global manufacturer (cascades to user_manufacturers via DB).
     await db
       .update(manufacturers)
       .set({ deletedAt: new Date() })

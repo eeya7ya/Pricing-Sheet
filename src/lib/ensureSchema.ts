@@ -86,6 +86,38 @@ export async function ensureSchema() {
       END $$;
     `);
 
+    // user_manufacturers — per-user color/tag for each manufacturer
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS user_manufacturers (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        manufacturer_id INTEGER NOT NULL REFERENCES manufacturers(id) ON DELETE CASCADE,
+        color TEXT NOT NULL DEFAULT 'cyan',
+        tag TEXT NOT NULL DEFAULT '',
+        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+        deleted_at TIMESTAMP,
+        UNIQUE(user_id, manufacturer_id)
+      )
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS user_manufacturers_user_id_idx ON user_manufacturers (user_id)
+    `);
+    // Migrate existing per-user color/tag data from manufacturers into the
+    // new junction table. Safe to run repeatedly thanks to ON CONFLICT DO NOTHING.
+    await db.execute(sql`
+      INSERT INTO user_manufacturers (user_id, manufacturer_id, color, tag, created_at)
+      SELECT
+        created_by_user_id,
+        id,
+        COALESCE(NULLIF(color, ''), 'cyan'),
+        COALESCE(tag, ''),
+        created_at
+      FROM manufacturers
+      WHERE created_by_user_id IS NOT NULL
+        AND deleted_at IS NULL
+      ON CONFLICT (user_id, manufacturer_id) DO NOTHING
+    `);
+
     ensuredSchema = true;
   } catch (e) {
     console.error("[ensureSchema] failed:", e);
