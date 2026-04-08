@@ -132,16 +132,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { name, color, tag } = await req.json();
+    const { name, color } = await req.json();
     if (!name?.trim()) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
     }
     if (!color?.trim()) {
       return NextResponse.json({ error: "Color is required" }, { status: 400 });
     }
-    if (!tag?.trim()) {
-      return NextResponse.json({ error: "Tag is required" }, { status: 400 });
-    }
+    // Tag is always the user's username — automatic, not user-supplied.
+    const tag = user.username;
 
     // Find or create the global manufacturer by name.
     let manufacturer = await db.query.manufacturers.findFirst({

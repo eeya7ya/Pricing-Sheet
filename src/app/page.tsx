@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Plus, Factory, BarChart3, AlertCircle, Loader2, Tag as TagIcon } from "lucide-react";
+import { Plus, Factory, BarChart3, AlertCircle, Loader2 } from "lucide-react";
 import { ManufacturerCard } from "@/components/ManufacturerCard";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
@@ -29,7 +29,6 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
-  const [newTag, setNewTag] = useState("");
   const [newColor, setNewColor] = useState<string>(DEFAULT_MANUFACTURER_COLOR.key);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -65,12 +64,11 @@ export default function DashboardPage() {
 
   const resetForm = () => {
     setNewName("");
-    setNewTag("");
     setNewColor(DEFAULT_MANUFACTURER_COLOR.key);
   };
 
   const handleCreate = async () => {
-    if (!newName.trim() || !newTag.trim()) return;
+    if (!newName.trim()) return;
     setSaving(true);
     setError(null);
     try {
@@ -80,7 +78,6 @@ export default function DashboardPage() {
         body: JSON.stringify({
           name: newName.trim(),
           color: newColor,
-          tag: newTag.trim() || null,
         }),
       });
       if (res.ok) {
@@ -179,20 +176,6 @@ export default function DashboardPage() {
                   }}
                   className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-800 placeholder-gray-400 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/20 min-w-[200px]"
                 />
-                <div className="relative">
-                  <TagIcon className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Tag / code…"
-                    value={newTag}
-                    onChange={(e) => setNewTag(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") handleCreate();
-                      if (e.key === "Escape") handleCancel();
-                    }}
-                    className="w-[160px] rounded-xl border border-gray-200 bg-white py-2.5 pl-9 pr-4 text-sm text-gray-800 placeholder-gray-400 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/20"
-                  />
-                </div>
               </div>
 
               {/* Color picker */}
@@ -221,7 +204,7 @@ export default function DashboardPage() {
                 <button
                   type="button"
                   onClick={handleCreate}
-                  disabled={!newName.trim() || !newTag.trim() || saving}
+                  disabled={!newName.trim() || saving}
                   className="rounded-xl bg-cyan-500 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-cyan-400 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
                 >
                   {saving ? "Adding…" : "Add"}
