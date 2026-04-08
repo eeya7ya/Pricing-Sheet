@@ -11,22 +11,21 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Admin sees all; regular user sees only their manufacturer
-    const allManufacturers =
-      user.role === "admin"
-        ? await db.query.manufacturers.findMany({
-            orderBy: (m, { asc }) => [asc(m.createdAt)],
-          })
-        : user.manufacturerId
-        ? await db.query.manufacturers.findMany({
-            where: (m, { eq }) => eq(m.id, user.manufacturerId!),
-          })
-        : [];
+    // Manufacturers are shared between all users — everyone sees the
+    // full list, but non-admins only see their own projects inside.
+    const allManufacturers = await db.query.manufacturers.findMany({
+      where: (m, { isNull }) => isNull(m.deletedAt),
+      orderBy: (m, { asc }) => [asc(m.createdAt)],
+    });
 
     const result = await Promise.all(
       allManufacturers.map(async (manufacturer) => {
         const mProjects = await db.query.projects.findMany({
-          where: (p, { eq }) => eq(p.manufacturerId, manufacturer.id),
+          where: (p, { eq, isNull, and }) => {
+            const base = and(eq(p.manufacturerId, manufacturer.id), isNull(p.deletedAt));
+            if (user.role === "admin") return base;
+            return and(base, eq(p.userId, user.id));
+          },
           orderBy: (p, { asc }) => [asc(p.createdAt)],
         });
 

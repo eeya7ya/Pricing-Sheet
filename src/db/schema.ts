@@ -37,6 +37,9 @@ export const projects = pgTable("projects", {
   manufacturerId: integer("manufacturer_id")
     .references(() => manufacturers.id, { onDelete: "cascade" })
     .notNull(),
+  // Owner: non-admins only see their own projects; admin sees all.
+  // Nullable for backwards compatibility with legacy rows.
+  userId: integer("user_id").references(() => users.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   deletedAt: timestamp("deleted_at"),
 });
@@ -76,6 +79,19 @@ export const accountRequests = pgTable("account_requests", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const auditLogs = pgTable("audit_logs", {
+  id: serial("id").primaryKey(),
+  actorUserId: integer("actor_user_id"),
+  actorEmail: text("actor_email"),
+  actorName: text("actor_name"),
+  action: text("action").notNull(), // e.g. "login", "login_failed", "logout", "create", "update", "delete"
+  entityType: text("entity_type"), // e.g. "manufacturer", "project", "user"
+  entityId: integer("entity_id"),
+  details: text("details"), // JSON stringified context
+  ipAddress: text("ip_address"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const productLines = pgTable(
   "product_lines",
   {
@@ -105,3 +121,5 @@ export type AccountRequest = typeof accountRequests.$inferSelect;
 export type NewAccountRequest = typeof accountRequests.$inferInsert;
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
+export type AuditLog = typeof auditLogs.$inferSelect;
+export type NewAuditLog = typeof auditLogs.$inferInsert;

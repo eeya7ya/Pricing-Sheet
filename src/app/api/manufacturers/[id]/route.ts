@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { manufacturers } from "@/db/schema";
 import { eq, isNull, and } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth";
+import { logAudit, getClientIp } from "@/lib/audit";
 
 export async function GET(
   _req: Request,
@@ -16,11 +17,6 @@ export async function GET(
 
     const { id } = await params;
     const mfgId = parseInt(id);
-
-    // Non-admin can only access their own manufacturer
-    if (user.role !== "admin" && user.manufacturerId !== mfgId) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
 
     const manufacturer = await db.query.manufacturers.findFirst({
       where: (m, { eq, isNull, and }) =>
@@ -47,7 +43,13 @@ export async function PUT(
     const { id } = await params;
     const mfgId = parseInt(id);
 
-    if (user.role !== "admin" && user.manufacturerId !== mfgId) {
+    const existing = await db.query.manufacturers.findFirst({
+      where: (m, { eq, isNull, and }) => and(eq(m.id, mfgId), isNull(m.deletedAt)),
+    });
+    if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+    // Only admins or the creator can rename a shared manufacturer.
+    if (user.role !== "admin" && existing.createdByUserId !== user.id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -63,6 +65,16 @@ export async function PUT(
     if (!updated) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
+
+    await logAudit({
+      actor: user,
+      action: "update",
+      entityType: "manufacturer",
+      entityId: mfgId,
+      details: { from: existing.name, to: updated.name },
+      ipAddress: getClientIp(req),
+    });
+
     return NextResponse.json(updated);
   } catch (error) {
     console.error(error);
@@ -71,7 +83,7 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -81,11 +93,22 @@ export async function DELETE(
     }
 
     const { id } = await params;
+    const mfgId = parseInt(id);
+
     // Soft delete
     await db
       .update(manufacturers)
       .set({ deletedAt: new Date() })
-      .where(eq(manufacturers.id, parseInt(id)));
+      .where(eq(manufacturers.id, mfgId));
+
+    await logAudit({
+      actor: user,
+      action: "delete",
+      entityType: "manufacturer",
+      entityId: mfgId,
+      ipAddress: getClientIp(req),
+    });
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error(error);

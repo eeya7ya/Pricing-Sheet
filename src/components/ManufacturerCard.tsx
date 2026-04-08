@@ -8,7 +8,7 @@ interface Props {
   id: number;
   name: string;
   projectCount: number;
-  onDelete: (id: number) => void;
+  onDelete?: (id: number) => void;
 }
 
 export function ManufacturerCard({ id, name, projectCount, onDelete }: Props) {
@@ -21,19 +21,21 @@ export function ManufacturerCard({ id, name, projectCount, onDelete }: Props) {
         "hover:border-cyan-200 hover:shadow-lg hover:shadow-gray-200"
       )}
     >
-      {/* Delete button */}
-      <button
-        type="button"
-        onClick={(e) => {
-          e.preventDefault();
-          if (confirm(`Delete "${name}" and all its data?`)) {
-            onDelete(id);
-          }
-        }}
-        className="absolute right-3 top-3 rounded-lg p-1.5 text-gray-300 opacity-0 transition-all group-hover:opacity-100 hover:bg-rose-50 hover:text-rose-500"
-      >
-        <Trash2 className="h-3.5 w-3.5" />
-      </button>
+      {/* Delete button (admin only) */}
+      {onDelete && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            if (confirm(`Delete "${name}" and all its data?`)) {
+              onDelete(id);
+            }
+          }}
+          className="absolute right-3 top-3 rounded-lg p-1.5 text-gray-300 opacity-0 transition-all group-hover:opacity-100 hover:bg-rose-50 hover:text-rose-500"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      )}
 
       {/* Icon */}
       <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-cyan-50 ring-1 ring-cyan-200">

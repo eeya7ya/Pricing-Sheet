@@ -3,8 +3,14 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { projects, projectConstants, productLines } from "@/db/schema";
-import { eq, isNull, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth";
+import { logAudit, getClientIp } from "@/lib/audit";
+
+function canAccess(user: { id: number; role: "admin" | "user" }, project: { userId: number | null }) {
+  if (user.role === "admin") return true;
+  return project.userId === user.id;
+}
 
 export async function GET(
   _req: Request,
@@ -23,8 +29,7 @@ export async function GET(
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    // Non-admin can only access their own manufacturer's projects
-    if (user.role !== "admin" && user.manufacturerId !== project.manufacturerId) {
+    if (!canAccess(user, project)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -62,7 +67,7 @@ export async function PUT(
     });
     if (!project) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-    if (user.role !== "admin" && user.manufacturerId !== project.manufacturerId) {
+    if (!canAccess(user, project)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -115,6 +120,23 @@ export async function PUT(
       where: (l, { eq }) => eq(l.projectId, parseInt(id)),
       orderBy: (l, { asc }) => [asc(l.position)],
     });
+
+    await logAudit({
+      actor: user,
+      action: "update",
+      entityType: "project",
+      entityId: parseInt(id),
+      details: {
+        fields: {
+          name: body.name !== undefined,
+          date: body.date !== undefined,
+          constants: body.constants !== undefined,
+          productLines: body.productLines?.length,
+        },
+      },
+      ipAddress: getClientIp(req),
+    });
+
     return NextResponse.json({ success: true, productLines: freshLines });
   } catch (error) {
     console.error(error);
@@ -123,7 +145,7 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -136,7 +158,7 @@ export async function DELETE(
     });
     if (!project) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-    if (user.role !== "admin" && user.manufacturerId !== project.manufacturerId) {
+    if (!canAccess(user, project)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -145,6 +167,16 @@ export async function DELETE(
       .update(projects)
       .set({ deletedAt: new Date() })
       .where(eq(projects.id, parseInt(id)));
+
+    await logAudit({
+      actor: user,
+      action: "delete",
+      entityType: "project",
+      entityId: parseInt(id),
+      details: { name: project.name },
+      ipAddress: getClientIp(req),
+    });
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error(error);

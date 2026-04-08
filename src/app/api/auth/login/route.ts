@@ -3,33 +3,57 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { signToken, comparePassword, COOKIE_NAME, type AuthUser } from "@/lib/auth";
+import { ensureSchema, ensureAdminUser } from "@/lib/ensureSchema";
+import { logAudit, getClientIp } from "@/lib/audit";
 
 export async function POST(req: Request) {
+  // Make sure the admin account exists and audit_logs table is ready
+  // before we try to authenticate anyone.
+  await ensureSchema();
+  await ensureAdminUser();
+
+  const ip = getClientIp(req);
+
   try {
     const { email, password } = await req.json();
 
     if (!email?.trim() || !password) {
       return NextResponse.json(
-        { error: "Email and password are required." },
+        { error: "Username and password are required." },
         { status: 400 }
       );
     }
 
+    const normalized = email.trim().toLowerCase();
+
     const user = await db.query.users.findFirst({
-      where: (u, { eq }) => eq(u.email, email.trim().toLowerCase()),
+      where: (u, { eq }) => eq(u.email, normalized),
     });
 
     if (!user) {
+      await logAudit({
+        actorEmail: normalized,
+        action: "login_failed",
+        details: { reason: "user_not_found" },
+        ipAddress: ip,
+      });
       return NextResponse.json(
-        { error: "Invalid email or password." },
+        { error: "Invalid username or password." },
         { status: 401 }
       );
     }
 
     const valid = await comparePassword(password, user.passwordHash);
     if (!valid) {
+      await logAudit({
+        actorEmail: user.email,
+        actorName: user.fullName,
+        action: "login_failed",
+        details: { reason: "bad_password" },
+        ipAddress: ip,
+      });
       return NextResponse.json(
-        { error: "Invalid email or password." },
+        { error: "Invalid username or password." },
         { status: 401 }
       );
     }
@@ -44,12 +68,10 @@ export async function POST(req: Request) {
 
     const token = await signToken(authUser);
 
-    const redirectTo =
-      authUser.role === "admin"
-        ? "/"
-        : authUser.manufacturerId
-        ? `/manufacturer/${authUser.manufacturerId}`
-        : "/";
+    // With the shared-manufacturer model, every signed-in user lands on
+    // the same dashboard. Admin sees everything; users see shared
+    // manufacturers with only their own projects inside.
+    const redirectTo = "/";
 
     const res = NextResponse.json({ user: authUser, redirectTo });
     res.cookies.set(COOKIE_NAME, token, {
@@ -59,6 +81,13 @@ export async function POST(req: Request) {
       maxAge: 60 * 60 * 24 * 30, // 30 days
       path: "/",
     });
+
+    await logAudit({
+      actor: authUser,
+      action: "login",
+      ipAddress: ip,
+    });
+
     return res;
   } catch (error) {
     console.error("[auth/login]", error);

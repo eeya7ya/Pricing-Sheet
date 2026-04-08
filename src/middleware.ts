@@ -39,47 +39,18 @@ export async function middleware(request: NextRequest) {
   try {
     const { payload } = await jwtVerify(token, getSecret());
     const role = payload.role as string;
-    const manufacturerId = payload.manufacturerId as number | null;
 
-    // Block non-admins from /admin
+    // Block non-admins from /admin pages and /api/admin routes
+    // (except /api/admin/setup which is in PUBLIC_API_PREFIXES).
     if (pathname.startsWith("/admin") && role !== "admin") {
       return NextResponse.redirect(new URL("/", request.url));
     }
-
-    // Non-admin API guard: filter manufacturer/project access at API level
-    if (pathname.startsWith("/api/") && role !== "admin") {
-      // Block accessing a different manufacturer's data
-      const mMatch = pathname.match(/^\/api\/manufacturers\/(\d+)/);
-      if (mMatch && manufacturerId !== null) {
-        const urlMfgId = parseInt(mMatch[1]);
-        if (urlMfgId !== manufacturerId) {
-          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-        }
-      }
+    if (pathname.startsWith("/api/admin/") && role !== "admin") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Non-admin with a manufacturer → send directly to their sheet
-    if (pathname === "/" && role !== "admin" && manufacturerId) {
-      return NextResponse.redirect(
-        new URL(`/manufacturer/${manufacturerId}`, request.url)
-      );
-    }
-    // Non-admin without a manufacturer → let them reach the dashboard to create one
-
-    // Non-admin visiting a different manufacturer's page → redirect to own
-    if (
-      pathname.startsWith("/manufacturer/") &&
-      role !== "admin" &&
-      manufacturerId !== null
-    ) {
-      const urlId = parseInt(pathname.split("/")[2]);
-      if (urlId !== manufacturerId) {
-        return NextResponse.redirect(
-          new URL(`/manufacturer/${manufacturerId}`, request.url)
-        );
-      }
-    }
-
+    // Manufacturers are now shared between all users — no per-user
+    // lockdown. Project-level scoping is enforced inside the API routes.
     return NextResponse.next();
   } catch {
     if (pathname.startsWith("/api/")) {

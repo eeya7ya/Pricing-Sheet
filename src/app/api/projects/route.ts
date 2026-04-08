@@ -3,10 +3,13 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { projects, projectConstants, productLines } from "@/db/schema";
-import { eq } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth";
+import { ensureSchema } from "@/lib/ensureSchema";
+import { logAudit, getClientIp } from "@/lib/audit";
 
 export async function GET(req: Request) {
+  await ensureSchema();
+
   try {
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -19,14 +22,14 @@ export async function GET(req: Request) {
 
     const mfgId = parseInt(manufacturerId);
 
-    // Non-admin can only access their own manufacturer's projects
-    if (user.role !== "admin" && user.manufacturerId !== mfgId) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
+    // Shared manufacturers: any signed-in user can list projects, but
+    // non-admins only see their own projects.
     const all = await db.query.projects.findMany({
-      where: (p, { eq, isNull, and }) =>
-        and(eq(p.manufacturerId, mfgId), isNull(p.deletedAt)),
+      where: (p, { eq, isNull, and }) => {
+        const base = and(eq(p.manufacturerId, mfgId), isNull(p.deletedAt));
+        if (user.role === "admin") return base;
+        return and(base, eq(p.userId, user.id));
+      },
       orderBy: (p, { asc }) => [asc(p.createdAt)],
     });
     return NextResponse.json(all);
@@ -37,6 +40,8 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  await ensureSchema();
+
   try {
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -51,14 +56,9 @@ export async function POST(req: Request) {
 
     const mfgId = parseInt(manufacturerId);
 
-    // Non-admin can only create projects for their own manufacturer
-    if (user.role !== "admin" && user.manufacturerId !== mfgId) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
     const [project] = await db
       .insert(projects)
-      .values({ name: name.trim(), manufacturerId: mfgId })
+      .values({ name: name.trim(), manufacturerId: mfgId, userId: user.id })
       .returning();
 
     await db.insert(projectConstants).values({ projectId: project.id });
@@ -72,6 +72,15 @@ export async function POST(req: Request) {
         quantity: 1,
       }))
     );
+
+    await logAudit({
+      actor: user,
+      action: "create",
+      entityType: "project",
+      entityId: project.id,
+      details: { name: project.name, manufacturerId: mfgId },
+      ipAddress: getClientIp(req),
+    });
 
     return NextResponse.json(project, { status: 201 });
   } catch (error) {
