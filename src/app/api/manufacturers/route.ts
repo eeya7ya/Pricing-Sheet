@@ -18,60 +18,72 @@ export async function GET() {
     }
 
     if (user.role === "admin") {
-      // Admin sees all manufacturers.
-      // Color + tag come from the creator's user record so cards are
-      // visually grouped by owner.
-      const all = await db.query.manufacturers.findMany({
-        where: (m, { isNull }) => isNull(m.deletedAt),
-        orderBy: (m, { asc }) => [asc(m.createdAt)],
-      });
+      // Admin sees one card per (user, manufacturer) pair so that
+      // every user's added manufacturers are visible — each tagged with
+      // its owning user's username and accent color.
+      const rows = await db
+        .select({
+          manufacturerId: manufacturers.id,
+          name: manufacturers.name,
+          umColor: userManufacturers.color,
+          umTag: userManufacturers.tag,
+          createdAt: userManufacturers.createdAt,
+          ownerUserId: users.id,
+          ownerUserName: users.fullName,
+          ownerUsername: users.username,
+          ownerColor: users.color,
+        })
+        .from(userManufacturers)
+        .innerJoin(manufacturers, eq(userManufacturers.manufacturerId, manufacturers.id))
+        .innerJoin(users, eq(userManufacturers.userId, users.id))
+        .where(
+          and(
+            isNull(userManufacturers.deletedAt),
+            isNull(manufacturers.deletedAt)
+          )
+        )
+        .orderBy(asc(users.fullName), asc(manufacturers.name));
 
-      if (all.length === 0) return NextResponse.json([]);
+      if (rows.length === 0) return NextResponse.json([]);
 
-      const mfgIds = all.map((m) => m.id);
+      // Per-(manufacturer, user) project counts so each card shows the
+      // owning user's project total, not the global total.
+      const mfgIds = [...new Set(rows.map((r) => r.manufacturerId))];
+      const userIds = [...new Set(rows.map((r) => r.ownerUserId))];
 
-      // Total project counts across all users.
       const countsRows = await db
         .select({
           manufacturerId: projects.manufacturerId,
+          userId: projects.userId,
           count: sql<number>`count(*)::int`,
         })
         .from(projects)
-        .where(and(isNull(projects.deletedAt), inArray(projects.manufacturerId, mfgIds)))
-        .groupBy(projects.manufacturerId);
+        .where(
+          and(
+            isNull(projects.deletedAt),
+            inArray(projects.manufacturerId, mfgIds),
+            inArray(projects.userId, userIds)
+          )
+        )
+        .groupBy(projects.manufacturerId, projects.userId);
 
-      const countMap = new Map<number, number>();
-      for (const row of countsRows) countMap.set(row.manufacturerId, Number(row.count));
-
-      // Fetch creator info (color + fullName + username) in one query.
-      const creatorIds = [
-        ...new Set(
-          all.map((m) => m.createdByUserId).filter((id): id is number => id !== null)
-        ),
-      ];
-      const creators =
-        creatorIds.length > 0
-          ? await db.query.users.findMany({
-              where: (u, { inArray }) => inArray(u.id, creatorIds),
-            })
-          : [];
-      // Map userId → { color, fullName, username }
-      const creatorMap = Object.fromEntries(
-        creators.map((u) => [u.id, { color: u.color, fullName: u.fullName, username: u.username }])
-      );
+      const countMap = new Map<string, number>();
+      for (const row of countsRows) {
+        if (row.userId == null) continue;
+        countMap.set(`${row.manufacturerId}:${row.userId}`, Number(row.count));
+      }
 
       return NextResponse.json(
-        all.map((m) => {
-          const creator = m.createdByUserId ? creatorMap[m.createdByUserId] : null;
-          return {
-            ...m,
-            // Color and tag come from the creator's user record.
-            color: creator?.color ?? "cyan",
-            tag: creator?.username ?? null,
-            createdByUserName: creator?.fullName ?? null,
-            projectCount: countMap.get(m.id) ?? 0,
-          };
-        })
+        rows.map((r) => ({
+          id: r.manufacturerId,
+          name: r.name,
+          color: r.umColor || r.ownerColor || "cyan",
+          tag: r.umTag?.trim() ? r.umTag : r.ownerUsername,
+          createdAt: r.createdAt,
+          ownerUserId: r.ownerUserId,
+          ownerUserName: r.ownerUserName,
+          projectCount: countMap.get(`${r.manufacturerId}:${r.ownerUserId}`) ?? 0,
+        }))
       );
     }
 
@@ -85,7 +97,6 @@ export async function GET() {
         color: userManufacturers.color,
         tag: userManufacturers.tag,
         createdAt: userManufacturers.createdAt,
-        createdByUserId: manufacturers.createdByUserId,
       })
       .from(userManufacturers)
       .innerJoin(manufacturers, eq(userManufacturers.manufacturerId, manufacturers.id))
@@ -127,7 +138,8 @@ export async function GET() {
     return NextResponse.json(
       rows.map((r) => ({
         ...r,
-        createdByUserName: null,
+        ownerUserId: user.id,
+        ownerUserName: user.fullName,
         projectCount: countMap.get(r.id) ?? 0,
       }))
     );
