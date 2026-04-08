@@ -2,7 +2,6 @@
 
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
 import { Calculator, Lock, User, Loader2, AlertCircle, Eye, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
@@ -149,16 +148,6 @@ function LoginForm() {
           </form>
         </div>
 
-        {/* Request access link */}
-        <p className="mt-6 text-center text-sm text-gray-500">
-          Don&apos;t have an account?{" "}
-          <Link
-            href="/request-access"
-            className="font-medium text-cyan-600 hover:text-cyan-500 transition-colors"
-          >
-            Request access
-          </Link>
-        </p>
       </div>
     </div>
   );

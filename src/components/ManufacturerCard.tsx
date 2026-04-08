@@ -1,22 +1,28 @@
 "use client";
 
 import Link from "next/link";
-import { Factory, FolderOpen, ArrowRight, Trash2 } from "lucide-react";
+import { Factory, FolderOpen, ArrowRight, Trash2, Tag } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getManufacturerColor } from "@/lib/manufacturerColors";
 
 interface Props {
   id: number;
   name: string;
+  color?: string | null;
+  tag?: string | null;
   projectCount: number;
   onDelete?: (id: number) => void;
 }
 
-export function ManufacturerCard({ id, name, projectCount, onDelete }: Props) {
+export function ManufacturerCard({ id, name, color, tag, projectCount, onDelete }: Props) {
+  const palette = getManufacturerColor(color);
+
   return (
     <div
       className={cn(
         "group relative rounded-2xl p-5",
-        "border border-gray-200 bg-white",
+        "border border-gray-200 border-l-4 bg-white",
+        palette.border,
         "transition-all duration-300",
         "hover:border-cyan-200 hover:shadow-lg hover:shadow-gray-200"
       )}
@@ -38,12 +44,30 @@ export function ManufacturerCard({ id, name, projectCount, onDelete }: Props) {
       )}
 
       {/* Icon */}
-      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-cyan-50 ring-1 ring-cyan-200">
-        <Factory className="h-5 w-5 text-cyan-600" />
+      <div
+        className={cn(
+          "mb-4 flex h-12 w-12 items-center justify-center rounded-xl ring-1",
+          palette.bg,
+          palette.ring
+        )}
+      >
+        <Factory className={cn("h-5 w-5", palette.text)} />
       </div>
 
-      {/* Name */}
+      {/* Name + tag */}
       <h3 className="mb-1.5 text-base font-semibold text-gray-900">{name}</h3>
+      {tag ? (
+        <div
+          className={cn(
+            "mb-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold",
+            palette.tagBg,
+            palette.tagText
+          )}
+        >
+          <Tag className="h-2.5 w-2.5" />
+          {tag}
+        </div>
+      ) : null}
 
       {/* Stats */}
       <div className="mb-5 flex items-center gap-1.5 text-xs text-gray-500">

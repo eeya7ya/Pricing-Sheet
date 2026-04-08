@@ -3,14 +3,18 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { signToken, comparePassword, COOKIE_NAME, type AuthUser } from "@/lib/auth";
-import { ensureSchema, ensureAdminUser } from "@/lib/ensureSchema";
+import { ensureSchema, ensureAdminUser, consolidateToAdmin } from "@/lib/ensureSchema";
 import { logAudit, getClientIp } from "@/lib/audit";
 
 export async function POST(req: Request) {
   // Make sure the admin account exists and audit_logs table is ready
-  // before we try to authenticate anyone.
+  // before we try to authenticate anyone. consolidateToAdmin() is
+  // idempotent and only runs meaningful work once per process: it
+  // reassigns every legacy row to the admin account and removes any
+  // other users left over from the multi-tenant era.
   await ensureSchema();
   await ensureAdminUser();
+  await consolidateToAdmin();
 
   const ip = getClientIp(req);
 

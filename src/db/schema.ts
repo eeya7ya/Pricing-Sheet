@@ -12,6 +12,13 @@ import {
 export const manufacturers = pgTable("manufacturers", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
+  // Visual accent color key (e.g. "cyan", "blue", "purple"). See
+  // src/lib/manufacturerColors.ts for the palette. Nullable so legacy
+  // rows fall back to the default accent.
+  color: text("color"),
+  // Optional short label ("Customer A", "Site 2"…) used to disambiguate
+  // manufacturers that share a brand name.
+  tag: text("tag"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   deletedAt: timestamp("deleted_at"),
   createdByUserId: integer("created_by_user_id"),
