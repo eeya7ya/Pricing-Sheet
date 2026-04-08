@@ -11,11 +11,17 @@ interface Props {
   color?: string | null;
   tag?: string | null;
   projectCount: number;
+  /** Owner this card represents. For admins the same manufacturer can appear
+   *  multiple times (once per user), so we scope the link by owner to keep
+   *  projects isolated per user. */
+  ownerUserId?: number | null;
   onDelete?: (id: number) => void;
 }
 
-export function ManufacturerCard({ id, name, color, tag, projectCount, onDelete }: Props) {
+export function ManufacturerCard({ id, name, color, tag, projectCount, ownerUserId, onDelete }: Props) {
   const palette = getManufacturerColor(color);
+  const href =
+    ownerUserId != null ? `/manufacturer/${id}?owner=${ownerUserId}` : `/manufacturer/${id}`;
 
   return (
     <div
@@ -77,7 +83,7 @@ export function ManufacturerCard({ id, name, color, tag, projectCount, onDelete 
 
       {/* Open link */}
       <Link
-        href={`/manufacturer/${id}`}
+        href={href}
         className={cn(
           "flex items-center justify-between rounded-xl px-3.5 py-2.5",
           "border border-gray-200 bg-gray-50",

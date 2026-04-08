@@ -35,6 +35,11 @@ export async function GET(req: Request) {
       100
     );
     const restrictManufacturerId = searchParams.get("manufacturerId");
+    const ownerParam = searchParams.get("ownerUserId");
+    const restrictOwnerUserId =
+      ownerParam != null && Number.isFinite(parseInt(ownerParam, 10))
+        ? parseInt(ownerParam, 10)
+        : null;
 
     if (q.length === 0) {
       return NextResponse.json([]);
@@ -85,6 +90,12 @@ export async function GET(req: Request) {
         baseConds.push(eq(projects.manufacturerId, mfgId));
       }
     }
+    // Admins can further scope to a specific owning user (used when the
+    // manufacturer page is opened for a particular user from the admin
+    // dashboard). Non-admins are already forced to their own userId above.
+    if (restrictOwnerUserId != null && user.role === "admin") {
+      baseConds.push(eq(projects.userId, restrictOwnerUserId));
+    }
 
     const matchConds = [
       ilike(projects.name, like),
@@ -100,6 +111,7 @@ export async function GET(req: Request) {
         name: projects.name,
         date: projects.date,
         createdAt: projects.createdAt,
+        ownerUserId: projects.userId,
         manufacturerId: projects.manufacturerId,
         manufacturerName: manufacturers.name,
         manufacturerColor: userManufacturers.color,

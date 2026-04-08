@@ -10,6 +10,10 @@ interface Props {
   /** Called after a successful restore so the caller can refresh the
    *  project list. */
   onRestored?: () => void;
+  /** Admin-only: scopes export/restore to a specific owning user so the
+   *  admin gets (and writes back) only that user's projects, not the
+   *  blended admin view. */
+  ownerUserId?: number | null;
 }
 
 /**
@@ -21,6 +25,7 @@ export function ManufacturerBackup({
   manufacturerId,
   manufacturerName,
   onRestored,
+  ownerUserId,
 }: Props) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [exporting, setExporting] = useState(false);
@@ -35,12 +40,17 @@ export function ManufacturerBackup({
     setTimeout(() => setStatus(null), 4000);
   };
 
+  const ownerQuery =
+    ownerUserId != null ? `?ownerUserId=${ownerUserId}` : "";
+
   const handleExport = async () => {
     if (exporting) return;
     setExporting(true);
     setStatus(null);
     try {
-      const res = await fetch(`/api/manufacturers/${manufacturerId}/backup`);
+      const res = await fetch(
+        `/api/manufacturers/${manufacturerId}/backup${ownerQuery}`
+      );
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || "Export failed");
@@ -100,11 +110,14 @@ export function ManufacturerBackup({
         return;
       }
 
-      const res = await fetch(`/api/manufacturers/${manufacturerId}/backup`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: text,
-      });
+      const res = await fetch(
+        `/api/manufacturers/${manufacturerId}/backup${ownerQuery}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: text,
+        }
+      );
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || "Restore failed");

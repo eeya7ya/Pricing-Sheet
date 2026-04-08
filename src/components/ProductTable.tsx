@@ -193,10 +193,10 @@ export function ProductTable({ rows, constants, onChange, targetCurrency }: Prop
         <thead>
           <tr className="border-b border-gray-200">
             {/* Fixed input columns */}
-            <th className="sticky left-0 z-10 bg-gray-50 px-3 py-3 text-left font-semibold text-gray-500 whitespace-nowrap min-w-[40px]" rowSpan={2}>
+            <th className="sticky left-0 z-10 bg-gray-50 px-3 py-3 text-center font-semibold text-gray-500 whitespace-nowrap min-w-[40px]" rowSpan={2}>
               #
             </th>
-            <th className="group sticky left-10 z-10 bg-gray-50 px-3 py-3 text-left font-semibold text-gray-500 whitespace-nowrap min-w-[140px]" rowSpan={2}>
+            <th className="group sticky left-10 z-10 bg-gray-50 px-3 py-3 text-center font-semibold text-gray-500 whitespace-nowrap min-w-[140px]" rowSpan={2}>
               Item Model
               <ColActions field="itemModel" />
             </th>
@@ -225,8 +225,8 @@ export function ProductTable({ rows, constants, onChange, targetCurrency }: Prop
           {/* Sub-header for /Unit and Total */}
           <tr className="border-b border-gray-200 bg-gray-50">
             {/* USD Price /unit + total sub-headers */}
-            <th className="group border-l border-gray-100 px-3 pb-2 text-right text-[10px] text-gray-400">
-              <span className="inline-flex items-center gap-0.5">
+            <th className="group border-l border-gray-100 px-3 pb-2 text-center text-[10px] text-gray-400">
+              <span className="inline-flex items-center justify-center gap-0.5">
                 /unit
                 <button
                   title="Copy USD /unit column"
@@ -249,8 +249,8 @@ export function ProductTable({ rows, constants, onChange, targetCurrency }: Prop
                 </button>
               </span>
             </th>
-            <th className="group px-3 pb-2 text-right text-[10px] text-gray-400">
-              <span className="inline-flex items-center gap-0.5">
+            <th className="group px-3 pb-2 text-center text-[10px] text-gray-400">
+              <span className="inline-flex items-center justify-center gap-0.5">
                 total
                 <button
                   title="Copy USD total column"
@@ -271,11 +271,11 @@ export function ProductTable({ rows, constants, onChange, targetCurrency }: Prop
                 <th
                   key={`${col.label}-unit`}
                   className={cn(
-                    "group border-l border-gray-100 px-3 pb-2 text-right text-[10px] text-gray-400",
+                    "group border-l border-gray-100 px-3 pb-2 text-center text-[10px] text-gray-400",
                     col.highlight && "bg-gray-100"
                   )}
                 >
-                  <span className="inline-flex items-center gap-0.5">
+                  <span className="inline-flex items-center justify-center gap-0.5">
                     /unit
                     <button
                       title={`Copy ${col.label} /unit column`}
@@ -294,11 +294,11 @@ export function ProductTable({ rows, constants, onChange, targetCurrency }: Prop
                 <th
                   key={`${col.label}-total`}
                   className={cn(
-                    "group px-3 pb-2 text-right text-[10px] text-gray-400",
+                    "group px-3 pb-2 text-center text-[10px] text-gray-400",
                     col.highlight && "bg-gray-100"
                   )}
                 >
-                  <span className="inline-flex items-center gap-0.5">
+                  <span className="inline-flex items-center justify-center gap-0.5">
                     total
                     <button
                       title={`Copy ${col.label} total column`}
@@ -339,7 +339,7 @@ export function ProductTable({ rows, constants, onChange, targetCurrency }: Prop
                   placeholder="Item model…"
                   value={row.itemModel}
                   onChange={(e) => updateRow(i, "itemModel", e.target.value)}
-                  className="w-full rounded border border-transparent bg-transparent px-1.5 py-1 text-gray-800 placeholder-gray-300 transition-colors focus:border-gray-300 focus:bg-gray-50 focus:outline-none"
+                  className="w-full rounded border border-transparent bg-transparent px-1.5 py-1 text-center text-gray-800 placeholder-gray-300 transition-colors focus:border-gray-300 focus:bg-gray-50 focus:outline-none"
                 />
               </td>
               {/* USD Price (input) */}
@@ -359,11 +359,11 @@ export function ProductTable({ rows, constants, onChange, targetCurrency }: Prop
                     const clean = raw.replace(/[^0-9.]/g, "");
                     updateRow(i, "priceUsd", parseFloat(clean) || 0);
                   }}
-                  className="w-full rounded border border-transparent bg-transparent px-1.5 py-1 text-right font-mono text-gray-800 placeholder-gray-300 transition-colors focus:border-gray-300 focus:bg-gray-50 focus:outline-none"
+                  className="w-full rounded border border-transparent bg-transparent px-1.5 py-1 text-center font-mono text-gray-800 placeholder-gray-300 transition-colors focus:border-gray-300 focus:bg-gray-50 focus:outline-none"
                 />
               </td>
               {/* USD Total (computed) */}
-              <td className="px-3 py-2.5 text-right font-mono whitespace-nowrap text-gray-500">
+              <td className="px-3 py-2.5 text-center font-mono whitespace-nowrap text-gray-500">
                 {row.priceUsd ? N(row.usdTotal) : "—"}
               </td>
               {/* Quantity */}
@@ -437,7 +437,7 @@ export function ProductTable({ rows, constants, onChange, targetCurrency }: Prop
                     <td
                       key={`${col.label}-unit`}
                       className={cn(
-                        "border-l border-gray-100 px-2 py-1.5 text-right font-mono whitespace-nowrap",
+                        "border-l border-gray-100 px-2 py-1.5 text-center font-mono whitespace-nowrap",
                         col.color,
                         col.highlight && "bg-gray-50",
                         overrideField && "group/cell",
@@ -445,7 +445,7 @@ export function ProductTable({ rows, constants, onChange, targetCurrency }: Prop
                       )}
                     >
                       {overrideField ? (
-                        <div className="flex items-center justify-end gap-1">
+                        <div className="flex items-center justify-center gap-1">
                           {isValueOverridden ? (
                             <input
                               type="number"
@@ -456,7 +456,7 @@ export function ProductTable({ rows, constants, onChange, targetCurrency }: Prop
                                 updateRow(i, overrideField, parseFloat(e.target.value) || 0)
                               }
                               className={cn(
-                                "w-24 rounded border bg-white px-1.5 py-0.5 text-right font-mono text-xs focus:outline-none",
+                                "w-24 rounded border bg-white px-1.5 py-0.5 text-center font-mono text-xs focus:outline-none",
                                 isShipping
                                   ? "border-blue-300 text-blue-700 focus:border-blue-400"
                                   : "border-purple-300 text-purple-700 focus:border-purple-400"
@@ -491,7 +491,7 @@ export function ProductTable({ rows, constants, onChange, targetCurrency }: Prop
                     <td
                       key={`${col.label}-total`}
                       className={cn(
-                        "px-3 py-2.5 text-right font-mono whitespace-nowrap text-gray-500",
+                        "px-3 py-2.5 text-center font-mono whitespace-nowrap text-gray-500",
                         col.highlight && "bg-gray-50 !text-gray-800 font-medium",
                         isRateOverridden && "bg-amber-50/50"
                       )}
@@ -508,13 +508,13 @@ export function ProductTable({ rows, constants, onChange, targetCurrency }: Prop
         <tfoot>
           <tr className="border-t-2 border-gray-200 bg-gray-50">
             <td className="sticky left-0 z-10 bg-gray-100 px-3 py-3 text-center" />
-            <td className="sticky left-10 z-10 bg-gray-100 px-3 py-3 text-sm font-bold text-gray-700">
+            <td className="sticky left-10 z-10 bg-gray-100 px-3 py-3 text-center text-sm font-bold text-gray-700">
               TOTALS
             </td>
             {/* USD /unit */}
             <td className="border-l border-gray-100 px-3 py-3" />
             {/* USD total */}
-            <td className="px-3 py-3 text-right font-mono font-bold whitespace-nowrap text-gray-700">
+            <td className="px-3 py-3 text-center font-mono font-bold whitespace-nowrap text-gray-700">
               {N(totals.usdTotal)}
             </td>
             <td className="px-3 py-3" />
@@ -531,7 +531,7 @@ export function ProductTable({ rows, constants, onChange, targetCurrency }: Prop
                 <td
                   key={`total-${col.label}-total`}
                   className={cn(
-                    "px-3 py-3 text-right font-mono font-bold whitespace-nowrap",
+                    "px-3 py-3 text-center font-mono font-bold whitespace-nowrap",
                     col.highlight ? "bg-gray-100 text-cyan-600 text-sm" : "text-gray-700"
                   )}
                 >
