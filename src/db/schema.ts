@@ -103,6 +103,26 @@ export const auditLogs = pgTable("audit_logs", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Per-user customisation of a manufacturer: color and tag are owned by
+// the user, not the brand. One row per (user, manufacturer) pair.
+export const userManufacturers = pgTable(
+  "user_manufacturers",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    manufacturerId: integer("manufacturer_id")
+      .references(() => manufacturers.id, { onDelete: "cascade" })
+      .notNull(),
+    color: text("color").notNull().default("cyan"),
+    tag: text("tag").notNull().default(""),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    deletedAt: timestamp("deleted_at"),
+  },
+  (t) => [unique().on(t.userId, t.manufacturerId)]
+);
+
 export const productLines = pgTable(
   "product_lines",
   {
@@ -122,6 +142,8 @@ export const productLines = pgTable(
   (t) => [unique().on(t.projectId, t.position)]
 );
 
+export type UserManufacturer = typeof userManufacturers.$inferSelect;
+export type NewUserManufacturer = typeof userManufacturers.$inferInsert;
 export type Manufacturer = typeof manufacturers.$inferSelect;
 export type NewManufacturer = typeof manufacturers.$inferInsert;
 export type Project = typeof projects.$inferSelect;
