@@ -17,9 +17,12 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // All non-deleted manufacturers — shared between users.
+    // Admins see all manufacturers; regular users only see their own.
     const all = await db.query.manufacturers.findMany({
-      where: (m, { isNull }) => isNull(m.deletedAt),
+      where: (m, { isNull, eq, and }) =>
+        user.role === "admin"
+          ? isNull(m.deletedAt)
+          : and(isNull(m.deletedAt), eq(m.createdByUserId, user.id)),
       orderBy: (m, { asc }) => [asc(m.createdAt)],
     });
 

@@ -158,7 +158,7 @@ export default function DashboardPage() {
           <p className="mt-2 text-sm text-gray-500">
             {isAdmin
               ? "Manage manufacturers and their smart pricing sheets"
-              : "Shared manufacturers — your projects inside are private to you"}
+              : "Your manufacturers and projects are private to you"}
           </p>
         </div>
 
