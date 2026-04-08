@@ -9,6 +9,7 @@ import {
   ShieldAlert,
   Search,
   RefreshCw,
+  Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -38,17 +39,40 @@ const actionColor = (action: string) => {
 export default function AdminLogsPage() {
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [resetting, setResetting] = useState(false);
   const [query, setQuery] = useState("");
 
   const load = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/logs");
+      // `limit=all` returns the full history — logs are retained forever
+      // unless an admin manually resets them from this page.
+      const res = await fetch("/api/admin/logs?limit=all");
       if (res.ok) {
         setLogs(await res.json());
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const resetLogs = async () => {
+    const confirmed = confirm(
+      "Permanently clear the ENTIRE activity log? This cannot be undone.\n\n" +
+        "Logs are normally retained forever — only use this if you really " +
+        "want a clean slate."
+    );
+    if (!confirmed) return;
+    setResetting(true);
+    try {
+      const res = await fetch("/api/admin/logs", { method: "DELETE" });
+      if (res.ok) {
+        await load();
+      } else {
+        alert("Failed to reset logs.");
+      }
+    } finally {
+      setResetting(false);
     }
   };
 
@@ -94,15 +118,28 @@ export default function AdminLogsPage() {
           <h1 className="text-3xl font-bold text-gray-900">Activity Logs</h1>
           <p className="mt-1 text-sm text-gray-500">
             Every login, create, update, and delete across the workspace.
+            Logs are kept <span className="font-medium text-gray-700">forever</span>{" "}
+            until you manually reset them.
           </p>
         </div>
-        <button
-          onClick={load}
-          className="flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
-        >
-          <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
-          Refresh
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={load}
+            className="flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+          >
+            <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
+            Refresh
+          </button>
+          <button
+            onClick={resetLogs}
+            disabled={resetting || logs.length === 0}
+            className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-600 transition-colors hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
+            title="Permanently clear every audit log entry"
+          >
+            <Trash2 className={cn("h-4 w-4", resetting && "animate-pulse")} />
+            {resetting ? "Resetting…" : "Reset Logs"}
+          </button>
+        </div>
       </div>
 
       {/* Search */}

@@ -18,6 +18,12 @@ export interface AuditEntry {
  * break the user-facing request. Pass `actor` when you have an
  * authenticated user, or `actorUsername` for anonymous actions
  * (login attempts).
+ *
+ * Retention policy: audit rows live FOREVER. There is intentionally no
+ * TTL, scheduled job, or background cleanup that removes entries. The
+ * only supported way to clear the audit trail is an admin manually
+ * hitting DELETE /api/admin/logs from the Activity Logs page. Do not
+ * add any automatic deletion here.
  */
 export async function logAudit(entry: AuditEntry): Promise<void> {
   try {
