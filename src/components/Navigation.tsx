@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -12,48 +12,34 @@ import {
   LogOut,
   User,
   ChevronDown,
+  Activity,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-interface AuthUser {
-  id: number;
-  email: string;
-  fullName: string;
-  role: "admin" | "user";
-  manufacturerId: number | null;
-}
+import { useAuth } from "@/lib/auth-context";
 
 export function Navigation() {
   const pathname = usePathname();
   const router = useRouter();
-  const [user, setUser] = useState<AuthUser | null>(null);
+  const { user, signOut } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
 
-  useEffect(() => {
-    fetch("/api/auth/me")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => setUser(data))
-      .catch(() => setUser(null));
-  }, [pathname]);
-
   const handleLogout = async () => {
-    await fetch("/api/auth/logout", { method: "POST" });
-    setUser(null);
-    router.push("/login");
-    router.refresh();
+    await signOut();
+    router.replace("/login");
   };
 
   const navLinks = [
     { href: "/request-access", label: "Request Access", icon: UserPlus, publicOnly: true },
-    { href: "/", label: "Dashboard", icon: Home, adminOnly: true },
+    { href: "/", label: "Dashboard", icon: Home, authed: true },
     { href: "/compare", label: "Compare", icon: GitCompare, adminOnly: true },
     { href: "/admin", label: "Admin", icon: ShieldCheck, adminOnly: true },
-  ];
+    { href: "/admin/logs", label: "Logs", icon: Activity, adminOnly: true },
+  ] as const;
 
   const visibleLinks = navLinks.filter((link) => {
-    if (link.publicOnly) return !user; // Only show "Request Access" when not logged in
-    if (link.adminOnly && link.href === "/admin") return user?.role === "admin";
-    if (link.adminOnly) return !!user;
+    if ("publicOnly" in link && link.publicOnly) return !user;
+    if ("adminOnly" in link && link.adminOnly) return user?.role === "admin";
+    if ("authed" in link && link.authed) return !!user;
     return true;
   });
 
@@ -74,12 +60,14 @@ export function Navigation() {
         <div className="flex items-center gap-1">
           <nav className="flex items-center gap-1">
             {visibleLinks.map(({ href, label, icon: Icon }) => {
-              const isActive = pathname === href;
+              const isActive =
+                href === "/" ? pathname === "/" : pathname.startsWith(href);
               const isRequestAccess = href === "/request-access";
               return (
                 <Link
                   key={href}
                   href={href}
+                  prefetch
                   className={cn(
                     "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
                     isRequestAccess && !isActive

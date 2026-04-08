@@ -3,14 +3,16 @@
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Calculator, Lock, Mail, Loader2, AlertCircle, Eye, EyeOff } from "lucide-react";
+import { Calculator, Lock, User, Loader2, AlertCircle, Eye, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth-context";
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { refresh } = useAuth();
 
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -19,8 +21,8 @@ function LoginForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (!email.trim() || !password) {
-      setError("Please enter your email and password.");
+    if (!identifier.trim() || !password) {
+      setError("Please enter your username and password.");
       return;
     }
     setLoading(true);
@@ -28,17 +30,20 @@ function LoginForm() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), password }),
+        // The server accepts either an email or a plain username
+        // (e.g. "admin"). It's normalized to lowercase server-side.
+        body: JSON.stringify({ email: identifier.trim(), password }),
       });
       const data = await res.json();
       if (!res.ok) {
         setError(data.error ?? "Login failed.");
         return;
       }
-      // Redirect: honour ?from= param, else use server-determined path
+      // Refresh the auth context so the nav/dashboard have the user
+      // without needing a hard reload.
+      await refresh();
       const from = searchParams.get("from");
-      router.push(from && from !== "/login" ? from : data.redirectTo);
-      router.refresh();
+      router.replace(from && from !== "/login" ? from : data.redirectTo);
     } catch {
       setError("Network error. Please check your connection.");
     } finally {
@@ -63,19 +68,19 @@ function LoginForm() {
         {/* Card */}
         <div className="rounded-3xl border border-gray-200 bg-white p-8 shadow-sm">
           <form onSubmit={handleSubmit} className="space-y-5" noValidate>
-            {/* Email */}
+            {/* Username / email */}
             <div>
               <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                Email address
+                Username or email
               </label>
               <div className="relative">
-                <Mail className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <User className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                 <input
-                  type="email"
-                  autoComplete="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@company.com"
+                  type="text"
+                  autoComplete="username"
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                  placeholder="admin or you@company.com"
                   className={cn(
                     "w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 pl-10 pr-4 text-sm text-gray-800 placeholder-gray-400",
                     "focus:border-cyan-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-cyan-400/20 transition-colors"

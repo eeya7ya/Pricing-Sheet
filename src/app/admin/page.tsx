@@ -14,6 +14,7 @@ import {
   X,
   Trash2,
   XCircle,
+  Activity,
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -185,6 +186,13 @@ export default function AdminPage() {
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
           <div className="flex items-center gap-2">
+            <Link
+              href="/admin/logs"
+              className="flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+            >
+              <Activity className="h-4 w-4" />
+              Activity Logs
+            </Link>
             <Link
               href="/trash"
               className="flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"

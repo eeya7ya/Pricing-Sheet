@@ -6,6 +6,7 @@ import { users, manufacturers, accountRequests } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { getCurrentUser, hashPassword } from "@/lib/auth";
 import { sendCredentialsEmail } from "@/lib/email";
+import { logAudit, getClientIp } from "@/lib/audit";
 
 export async function GET() {
   try {
@@ -96,6 +97,15 @@ export async function POST(req: Request) {
       fullName: fullName.trim(),
       password,
     }).catch((err) => console.error("[admin/users] credentials email error:", err));
+
+    await logAudit({
+      actor: me,
+      action: "create",
+      entityType: "user",
+      entityId: user.id,
+      details: { email: user.email, fullName: user.fullName, manufacturerId: mfgId },
+      ipAddress: getClientIp(req),
+    });
 
     return NextResponse.json(
       { success: true, userId: user.id, manufacturerId: mfgId },

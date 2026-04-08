@@ -1,63 +1,54 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Plus, Factory, BarChart3, AlertCircle } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Plus, Factory, BarChart3, AlertCircle, Loader2 } from "lucide-react";
 import { ManufacturerCard } from "@/components/ManufacturerCard";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth-context";
 
-interface Manufacturer {
+interface ManufacturerWithCount {
   id: number;
   name: string;
   createdAt: string;
   createdByUserId: number | null;
   createdByUserName: string | null;
-}
-
-interface ManufacturerWithCount {
-  manufacturer: Manufacturer;
   projectCount: number;
 }
 
 export default function DashboardPage() {
+  const { user, loading: authLoading } = useAuth();
+  const isAdmin = user?.role === "admin";
+
   const [items, setItems] = useState<ManufacturerWithCount[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [activeTab, setActiveTab] = useState("all");
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [mRes, meRes] = await Promise.all([
-        fetch("/api/manufacturers"),
-        fetch("/api/auth/me"),
-      ]);
-      if (meRes.ok) {
-        const me = await meRes.json();
-        setIsAdmin(me.role === "admin");
+      const res = await fetch("/api/manufacturers", { cache: "no-store" });
+      if (res.ok) {
+        const data: ManufacturerWithCount[] = await res.json();
+        setItems(data);
+      } else {
+        setItems([]);
       }
-      if (mRes.ok) {
-        const manufacturers: Manufacturer[] = await mRes.json();
-        const withCounts = await Promise.all(
-          manufacturers.map(async (m) => {
-            const pRes = await fetch(`/api/projects?manufacturerId=${m.id}`);
-            const projects = pRes.ok ? await pRes.json() : [];
-            return { manufacturer: m, projectCount: projects.length };
-          })
-        );
-        setItems(withCounts);
-      }
+    } catch {
+      setItems([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
+    if (authLoading) return;
+    if (!user) return; // middleware will redirect
     loadData();
-  }, []);
+  }, [authLoading, user, loadData]);
 
   const handleCreate = async () => {
     if (!newName.trim()) return;
@@ -70,12 +61,6 @@ export default function DashboardPage() {
         body: JSON.stringify({ name: newName.trim() }),
       });
       if (res.ok) {
-        const created = await res.json();
-        if (!isAdmin) {
-          // JWT was refreshed by the server; navigate to the new manufacturer
-          window.location.href = `/manufacturer/${created.id}`;
-          return;
-        }
         setNewName("");
         setCreating(false);
         await loadData();
@@ -97,29 +82,43 @@ export default function DashboardPage() {
   };
 
   const handleDelete = async (id: number) => {
-    await fetch(`/api/manufacturers/${id}`, { method: "DELETE" });
-    await loadData();
+    // Optimistic update — remove immediately, refetch in background.
+    setItems((prev) => prev.filter((m) => m.id !== id));
+    try {
+      await fetch(`/api/manufacturers/${id}`, { method: "DELETE" });
+    } finally {
+      loadData();
+    }
   };
 
-  // Build user tabs from items that have a named creator (admin-only UI)
-  const userTabs: { id: string; label: string }[] = [];
-  if (isAdmin) {
+  // Admin-only "group by user" tabs
+  const userTabs = useMemo(() => {
+    if (!isAdmin) return [] as { id: string; label: string }[];
     const seen = new Set<string>();
-    for (const { manufacturer: m } of items) {
+    const tabs: { id: string; label: string }[] = [];
+    for (const m of items) {
       if (m.createdByUserId && m.createdByUserName) {
         const key = String(m.createdByUserId);
         if (!seen.has(key)) {
           seen.add(key);
-          userTabs.push({ id: key, label: m.createdByUserName });
+          tabs.push({ id: key, label: m.createdByUserName });
         }
       }
     }
-  }
+    return tabs;
+  }, [isAdmin, items]);
 
-  const visibleItems =
-    isAdmin && activeTab !== "all"
-      ? items.filter(({ manufacturer: m }) => String(m.createdByUserId) === activeTab)
-      : items;
+  const visibleItems = useMemo(
+    () =>
+      isAdmin && activeTab !== "all"
+        ? items.filter((m) => String(m.createdByUserId) === activeTab)
+        : items,
+    [isAdmin, activeTab, items]
+  );
+
+  // Wait for the auth context before deciding what to show — prevents
+  // a flash of the empty state for non-admin users.
+  const showSpinner = authLoading || loading;
 
   return (
     <div className="mx-auto max-w-screen-xl px-4 py-10 sm:px-6">
@@ -134,7 +133,9 @@ export default function DashboardPage() {
             Pricing Dashboard
           </h1>
           <p className="mt-2 text-sm text-gray-500">
-            Manage manufacturers and their smart pricing sheets
+            {isAdmin
+              ? "Manage manufacturers and their smart pricing sheets"
+              : "Shared manufacturers — your projects inside are private to you"}
           </p>
         </div>
 
@@ -195,7 +196,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* User tabs (admin only, shown when there are user-created manufacturers) */}
+      {/* User tabs (admin only) */}
       {isAdmin && userTabs.length > 0 && (
         <div className="mb-6 flex flex-wrap gap-2">
           <button
@@ -227,9 +228,9 @@ export default function DashboardPage() {
       )}
 
       {/* Content */}
-      {loading ? (
+      {showSpinner ? (
         <div className="flex h-64 items-center justify-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-200 border-t-cyan-500" />
+          <Loader2 className="h-8 w-8 animate-spin text-cyan-500" />
         </div>
       ) : visibleItems.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-gray-200 bg-gray-50 py-24 text-center">
@@ -240,7 +241,9 @@ export default function DashboardPage() {
             No manufacturers yet
           </h3>
           <p className="mb-7 text-sm text-gray-500">
-            Add your first manufacturer to get started
+            {isAdmin
+              ? "Add your first manufacturer to get started"
+              : "Add a manufacturer to start building your pricing sheets"}
           </p>
           <button
             type="button"
@@ -253,13 +256,13 @@ export default function DashboardPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {visibleItems.map(({ manufacturer, projectCount }) => (
-            <div key={manufacturer.id} className="animate-fade-in">
+          {visibleItems.map((m) => (
+            <div key={m.id} className="animate-fade-in">
               <ManufacturerCard
-                id={manufacturer.id}
-                name={manufacturer.name}
-                projectCount={projectCount}
-                onDelete={handleDelete}
+                id={m.id}
+                name={m.name}
+                projectCount={m.projectCount}
+                onDelete={isAdmin ? handleDelete : undefined}
               />
             </div>
           ))}
