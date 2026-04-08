@@ -134,6 +134,94 @@ export async function POST(req: Request) {
   }
 }
 
+export async function PATCH(req: Request) {
+  try {
+    const me = await getCurrentUser();
+    if (!me || me.role !== "admin") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const { searchParams } = new URL(req.url);
+    const idParam = searchParams.get("id");
+    if (!idParam) {
+      return NextResponse.json({ error: "id required" }, { status: 400 });
+    }
+    const id = parseInt(idParam);
+    if (!Number.isFinite(id)) {
+      return NextResponse.json({ error: "invalid id" }, { status: 400 });
+    }
+
+    const target = await db.query.users.findFirst({
+      where: (u, { eq }) => eq(u.id, id),
+    });
+    if (!target) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    const body = await req.json();
+    const { fullName, color, manufacturerId } = body ?? {};
+
+    const updates: Record<string, unknown> = {};
+
+    if (typeof fullName === "string") {
+      const trimmed = fullName.trim();
+      if (trimmed.length === 0) {
+        return NextResponse.json(
+          { error: "fullName cannot be empty." },
+          { status: 400 }
+        );
+      }
+      updates.fullName = trimmed;
+    }
+
+    if (typeof color === "string") {
+      const validColorKeys = MANUFACTURER_COLORS.map((c) => c.key);
+      if (!validColorKeys.includes(color)) {
+        return NextResponse.json(
+          { error: "Invalid color." },
+          { status: 400 }
+        );
+      }
+      updates.color = color;
+    }
+
+    if (manufacturerId === null) {
+      updates.manufacturerId = null;
+    } else if (typeof manufacturerId === "number") {
+      updates.manufacturerId = manufacturerId;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json(
+        { error: "No valid fields to update." },
+        { status: 400 }
+      );
+    }
+
+    const { eq } = await import("drizzle-orm");
+    const [updated] = await db
+      .update(users)
+      .set(updates)
+      .where(eq(users.id, id))
+      .returning();
+
+    await logAudit({
+      actor: me,
+      action: "update",
+      entityType: "user",
+      entityId: id,
+      details: { username: target.username, changes: updates },
+      ipAddress: getClientIp(req),
+    });
+
+    const { passwordHash: _ph, ...safe } = updated;
+    return NextResponse.json({ success: true, user: safe });
+  } catch (error) {
+    console.error("[admin/users PATCH]", error);
+    return NextResponse.json({ error: "Failed to update user." }, { status: 500 });
+  }
+}
+
 export async function DELETE(req: Request) {
   try {
     const me = await getCurrentUser();
