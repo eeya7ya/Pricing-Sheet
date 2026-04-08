@@ -25,20 +25,25 @@ export default function DashboardPage() {
   const [newName, setNewName] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("all");
 
   const loadData = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const res = await fetch("/api/manufacturers", { cache: "no-store" });
       if (res.ok) {
         const data: ManufacturerWithCount[] = await res.json();
         setItems(data);
       } else {
+        const body = await res.json().catch(() => ({}));
         setItems([]);
+        setLoadError(body.error ?? `Failed to load manufacturers (${res.status}).`);
       }
     } catch {
       setItems([]);
+      setLoadError("Network error. Please check your connection.");
     } finally {
       setLoading(false);
     }
@@ -224,6 +229,14 @@ export default function DashboardPage() {
               {tab.label}
             </button>
           ))}
+        </div>
+      )}
+
+      {/* Load error banner */}
+      {loadError && (
+        <div className="mb-4 flex items-start gap-2 rounded-xl border border-rose-100 bg-rose-50 px-4 py-3">
+          <AlertCircle className="h-4 w-4 flex-shrink-0 text-rose-500 mt-0.5" />
+          <p className="text-sm text-rose-600">{loadError}</p>
         </div>
       )}
 
