@@ -5,10 +5,6 @@ import { Plus, Factory, BarChart3, AlertCircle, Loader2 } from "lucide-react";
 import { ManufacturerCard } from "@/components/ManufacturerCard";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
-import {
-  MANUFACTURER_COLORS,
-  DEFAULT_MANUFACTURER_COLOR,
-} from "@/lib/manufacturerColors";
 
 interface ManufacturerWithCount {
   id: number;
@@ -29,7 +25,6 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
-  const [newColor, setNewColor] = useState<string>(DEFAULT_MANUFACTURER_COLOR.key);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -64,7 +59,6 @@ export default function DashboardPage() {
 
   const resetForm = () => {
     setNewName("");
-    setNewColor(DEFAULT_MANUFACTURER_COLOR.key);
   };
 
   const handleCreate = async () => {
@@ -75,10 +69,7 @@ export default function DashboardPage() {
       const res = await fetch("/api/manufacturers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: newName.trim(),
-          color: newColor,
-        }),
+        body: JSON.stringify({ name: newName.trim() }),
       });
       if (res.ok) {
         resetForm();
@@ -176,28 +167,6 @@ export default function DashboardPage() {
                   }}
                   className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-800 placeholder-gray-400 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/20 min-w-[200px]"
                 />
-              </div>
-
-              {/* Color picker */}
-              <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2">
-                <span className="text-[11px] font-medium uppercase tracking-wide text-gray-400">
-                  Color
-                </span>
-                {MANUFACTURER_COLORS.map((c) => (
-                  <button
-                    type="button"
-                    key={c.key}
-                    title={c.label}
-                    onClick={() => setNewColor(c.key)}
-                    className={cn(
-                      "h-5 w-5 rounded-full border-2 transition-transform",
-                      c.dot,
-                      newColor === c.key
-                        ? "border-gray-900 scale-110"
-                        : "border-white hover:scale-110"
-                    )}
-                  />
-                ))}
               </div>
 
               <div className="flex items-center gap-2">

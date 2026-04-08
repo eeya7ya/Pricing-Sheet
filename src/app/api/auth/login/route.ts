@@ -67,6 +67,7 @@ export async function POST(req: Request) {
       username: user.username,
       fullName: user.fullName,
       role: user.role as "admin" | "user",
+      color: user.color ?? "cyan",
       manufacturerId: user.manufacturerId ?? null,
     };
 

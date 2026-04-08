@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { users, manufacturers } from "@/db/schema";
+import { MANUFACTURER_COLORS, DEFAULT_MANUFACTURER_COLOR } from "@/lib/manufacturerColors";
 import { getCurrentUser, hashPassword } from "@/lib/auth";
 import { logAudit, getClientIp } from "@/lib/audit";
 
@@ -39,6 +40,7 @@ export async function POST(req: Request) {
       username,
       password,
       fullName,
+      color,            // accent color key (e.g. "cyan", "purple")
       manufacturerId,   // optional existing manufacturer id
       manufacturerName, // optional: create a new manufacturer to assign
     } = body ?? {};
@@ -83,6 +85,13 @@ export async function POST(req: Request) {
 
     const passwordHash = await hashPassword(password);
 
+    // Validate and normalise color — fall back to default if not provided or invalid.
+    const validColorKeys = MANUFACTURER_COLORS.map((c) => c.key);
+    const resolvedColor =
+      typeof color === "string" && validColorKeys.includes(color)
+        ? color
+        : DEFAULT_MANUFACTURER_COLOR.key;
+
     const [user] = await db
       .insert(users)
       .values({
@@ -90,6 +99,7 @@ export async function POST(req: Request) {
         passwordHash,
         fullName: String(fullName).trim(),
         role: "user",
+        color: resolvedColor,
         manufacturerId: mfgId,
       })
       .returning();

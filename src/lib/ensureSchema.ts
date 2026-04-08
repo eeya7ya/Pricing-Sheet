@@ -86,6 +86,12 @@ export async function ensureSchema() {
       END $$;
     `);
 
+    // users.color — one accent color per user, applied to all their manufacturers
+    await db.execute(sql`
+      ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS color TEXT NOT NULL DEFAULT 'cyan'
+    `);
+
     // user_manufacturers — per-user color/tag for each manufacturer
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS user_manufacturers (
