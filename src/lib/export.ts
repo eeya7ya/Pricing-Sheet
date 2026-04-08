@@ -25,7 +25,8 @@ export function exportToCsv(
   const headers = [
     "#",
     "Item Model",
-    "USD Price",
+    "USD Price /unit",
+    "USD Price Total",
     "Qty",
     `${cur} Price /unit`,
     `${cur} Price Total`,
@@ -49,6 +50,7 @@ export function exportToCsv(
     row.position,
     `"${row.itemModel.replace(/"/g, '""')}"`,
     N(row.priceUsd),
+    N(row.usdTotal),
     row.quantity,
     N(row.jodPrice),
     N(row.jodPriceTotal),
@@ -72,6 +74,7 @@ export function exportToCsv(
     "",
     "TOTALS",
     "",
+    N(totals.usdTotal),
     "",
     "",
     N(totals.jodPriceTotal),
@@ -250,6 +253,7 @@ export function exportToPrint(
         <td class="num center">${row.position}</td>
         <td class="model">${row.itemModel || "—"}</td>
         <td class="num">${fmt(row.priceUsd)}</td>
+        <td class="num total-cell">${row.priceUsd ? fmt(row.usdTotal) : "—"}</td>
         <td class="num center">${row.quantity}</td>
         ${cells}
       </tr>`;
@@ -383,6 +387,7 @@ export function exportToPrint(
       <colgroup>
         <col style="width:22px">
         <col style="width:110px">
+        <col style="width:48px">
         <col style="width:54px">
         <col style="width:28px">
         ${colGroups.map(() => `<col style="width:52px"><col style="width:58px">`).join("")}
@@ -391,11 +396,13 @@ export function exportToPrint(
         <tr>
           <th rowspan="2">#</th>
           <th rowspan="2" class="model-col" style="text-align:left;">Item Model</th>
-          <th rowspan="2" class="usd-col">USD Price</th>
+          <th colspan="2" class="col-header" style="color:#16a34a;">USD Price</th>
           <th rowspan="2" class="qty-col">Qty</th>
           ${headerCells}
         </tr>
         <tr>
+          <th class="col-sub">/unit</th>
+          <th class="col-sub col-sub-r">total</th>
           ${subHeaderCells}
         </tr>
       </thead>
@@ -404,6 +411,7 @@ export function exportToPrint(
         <tr>
           <td colspan="2" style="text-align:left;font-size:9px;font-weight:700;color:#1e293b;padding:5px 8px;">TOTALS</td>
           <td></td>
+          <td class="num total-cell font-bold">${fmt(totals.usdTotal)}</td>
           <td></td>
           ${totalCells}
         </tr>

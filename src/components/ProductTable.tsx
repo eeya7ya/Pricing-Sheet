@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   calculateRow,
   calculateTotals,
@@ -8,7 +8,7 @@ import {
   type ProductInput,
 } from "@/lib/calculations";
 import { cn } from "@/lib/utils";
-import { Copy, ClipboardPaste, Lock, Unlock, Trash2 } from "lucide-react";
+import { Copy, ClipboardPaste, Lock, Unlock, Trash2, Settings2, RotateCcw } from "lucide-react";
 
 interface Row extends ProductInput {
   id: number;
@@ -52,10 +52,15 @@ function buildCalcColumns(currencyCode = "JOD"): CalcColumn[] {
 
 type InputField = "itemModel" | "priceUsd" | "quantity";
 type OverrideField = "shippingOverride" | "customsOverride";
+type RateOverrideField =
+  | "shippingRateOverride"
+  | "customsRateOverride"
+  | "profitRateOverride";
 
 export function ProductTable({ rows, constants, onChange, targetCurrency }: Props) {
-  const [copiedCol, setCopiedCol] = useState<InputField | null>(null);
+  const [copiedCol, setCopiedCol] = useState<InputField | "usdTotal" | null>(null);
   const [copiedCalcCol, setCopiedCalcCol] = useState<string | null>(null);
+  const [openRatesRowId, setOpenRatesRowId] = useState<number | null>(null);
 
   const CALC_COLUMNS = buildCalcColumns(targetCurrency);
 
@@ -89,6 +94,14 @@ export function ProductTable({ rows, constants, onChange, targetCurrency }: Prop
     const values = filledRows.map((r) => String(r[field])).join("\n");
     await navigator.clipboard.writeText(values);
     setCopiedCol(field);
+    setTimeout(() => setCopiedCol(null), 1500);
+  };
+
+  const copyUsdTotalColumn = async () => {
+    const filledRows = calculated.filter((r) => r.itemModel !== "");
+    const values = filledRows.map((r) => N(r.usdTotal)).join("\n");
+    await navigator.clipboard.writeText(values);
+    setCopiedCol("usdTotal");
     setTimeout(() => setCopiedCol(null), 1500);
   };
 
@@ -145,6 +158,11 @@ export function ProductTable({ rows, constants, onChange, targetCurrency }: Prop
     onChange(updated);
   };
 
+  const hasAnyRateOverride = (row: Row) =>
+    row.shippingRateOverride != null ||
+    row.customsRateOverride != null ||
+    row.profitRateOverride != null;
+
   const ColActions = ({ field }: { field: InputField }) => (
     <span className="ml-1.5 inline-flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
       <button
@@ -175,22 +193,21 @@ export function ProductTable({ rows, constants, onChange, targetCurrency }: Prop
         <thead>
           <tr className="border-b border-gray-200">
             {/* Fixed input columns */}
-            <th className="sticky left-0 z-10 bg-gray-50 px-3 py-3 text-left font-semibold text-gray-500 whitespace-nowrap min-w-[40px]">
+            <th className="sticky left-0 z-10 bg-gray-50 px-3 py-3 text-left font-semibold text-gray-500 whitespace-nowrap min-w-[40px]" rowSpan={2}>
               #
             </th>
-            <th className="group sticky left-10 z-10 bg-gray-50 px-3 py-3 text-left font-semibold text-gray-500 whitespace-nowrap min-w-[140px]">
+            <th className="group sticky left-10 z-10 bg-gray-50 px-3 py-3 text-left font-semibold text-gray-500 whitespace-nowrap min-w-[140px]" rowSpan={2}>
               Item Model
               <ColActions field="itemModel" />
             </th>
-            <th className="group px-3 py-3 text-right font-semibold text-gray-500 whitespace-nowrap min-w-[90px]">
+            <th className="px-3 py-3 text-center font-semibold text-gray-500 whitespace-nowrap min-w-[180px] border-l border-gray-100" colSpan={2}>
               USD Price
-              <ColActions field="priceUsd" />
             </th>
-            <th className="group px-3 py-3 text-center font-semibold text-gray-500 whitespace-nowrap min-w-[70px]">
+            <th className="group px-3 py-3 text-center font-semibold text-gray-500 whitespace-nowrap min-w-[70px]" rowSpan={2}>
               Qty
               <ColActions field="quantity" />
             </th>
-            <th className="w-8" />
+            <th className="w-16" rowSpan={2} />
             {/* Calculated columns (each has /Unit and Total) */}
             {CALC_COLUMNS.map((col) => (
               <th
@@ -207,11 +224,48 @@ export function ProductTable({ rows, constants, onChange, targetCurrency }: Prop
           </tr>
           {/* Sub-header for /Unit and Total */}
           <tr className="border-b border-gray-200 bg-gray-50">
-            <th className="sticky left-0 z-10 bg-gray-50" />
-            <th className="sticky left-10 z-10 bg-gray-50" />
-            <th className="px-3 pb-2 text-right text-gray-400 text-[10px]">per unit</th>
-            <th className="px-3 pb-2 text-center text-gray-400 text-[10px]" />
-            <th className="w-8" />
+            {/* USD Price /unit + total sub-headers */}
+            <th className="group border-l border-gray-100 px-3 pb-2 text-right text-[10px] text-gray-400">
+              <span className="inline-flex items-center gap-0.5">
+                /unit
+                <button
+                  title="Copy USD /unit column"
+                  onClick={() => copyColumn("priceUsd")}
+                  className={cn(
+                    "rounded p-0.5 transition-colors opacity-0 group-hover:opacity-100",
+                    copiedCol === "priceUsd"
+                      ? "text-emerald-600"
+                      : "text-gray-400 hover:text-gray-600 hover:bg-gray-200"
+                  )}
+                >
+                  <Copy size={10} />
+                </button>
+                <button
+                  title="Paste USD /unit column"
+                  onClick={() => pasteColumn("priceUsd")}
+                  className="rounded p-0.5 text-gray-400 hover:text-gray-600 hover:bg-gray-200 transition-colors opacity-0 group-hover:opacity-100"
+                >
+                  <ClipboardPaste size={10} />
+                </button>
+              </span>
+            </th>
+            <th className="group px-3 pb-2 text-right text-[10px] text-gray-400">
+              <span className="inline-flex items-center gap-0.5">
+                total
+                <button
+                  title="Copy USD total column"
+                  onClick={() => copyUsdTotalColumn()}
+                  className={cn(
+                    "rounded p-0.5 transition-colors opacity-0 group-hover:opacity-100",
+                    copiedCol === "usdTotal"
+                      ? "text-emerald-600"
+                      : "text-gray-400 hover:text-gray-600 hover:bg-gray-200"
+                  )}
+                >
+                  <Copy size={10} />
+                </button>
+              </span>
+            </th>
             {CALC_COLUMNS.map((col) => (
               <>
                 <th
@@ -288,8 +342,8 @@ export function ProductTable({ rows, constants, onChange, targetCurrency }: Prop
                   className="w-full rounded border border-transparent bg-transparent px-1.5 py-1 text-gray-800 placeholder-gray-300 transition-colors focus:border-gray-300 focus:bg-gray-50 focus:outline-none"
                 />
               </td>
-              {/* USD Price */}
-              <td className="px-2 py-1.5">
+              {/* USD Price (input) */}
+              <td className="border-l border-gray-100 px-2 py-1.5">
                 <input
                   type="number"
                   min="0"
@@ -307,6 +361,10 @@ export function ProductTable({ rows, constants, onChange, targetCurrency }: Prop
                   }}
                   className="w-full rounded border border-transparent bg-transparent px-1.5 py-1 text-right font-mono text-gray-800 placeholder-gray-300 transition-colors focus:border-gray-300 focus:bg-gray-50 focus:outline-none"
                 />
+              </td>
+              {/* USD Total (computed) */}
+              <td className="px-3 py-2.5 text-right font-mono whitespace-nowrap text-gray-500">
+                {row.priceUsd ? N(row.usdTotal) : "—"}
               </td>
               {/* Quantity */}
               <td className="px-2 py-1.5">
@@ -327,29 +385,49 @@ export function ProductTable({ rows, constants, onChange, targetCurrency }: Prop
                   className="w-full rounded border border-transparent bg-transparent px-1.5 py-1 text-center font-mono text-gray-800 transition-colors focus:border-gray-300 focus:bg-gray-50 focus:outline-none"
                 />
               </td>
-              {/* Delete button */}
+              {/* Row actions: rate overrides + delete */}
               <td className="px-1 py-1.5">
-                <button
-                  title="Delete row"
-                  onClick={() => deleteRow(i)}
-                  className="rounded p-1 text-gray-300 opacity-0 transition-colors hover:bg-rose-50 hover:text-rose-500 group-hover:opacity-100"
-                >
-                  <Trash2 size={12} />
-                </button>
+                <div className="flex items-center gap-0.5">
+                  <RowRateOverrides
+                    row={rows[i]}
+                    index={i}
+                    constants={constants}
+                    isOpen={openRatesRowId === row.id}
+                    onOpen={() => setOpenRatesRowId(row.id)}
+                    onClose={() => setOpenRatesRowId(null)}
+                    onUpdate={(field, value) => updateRow(i, field, value)}
+                    hasOverride={hasAnyRateOverride(rows[i])}
+                  />
+                  <button
+                    title="Delete row"
+                    onClick={() => deleteRow(i)}
+                    className="rounded p-1 text-gray-300 opacity-0 transition-colors hover:bg-rose-50 hover:text-rose-500 group-hover:opacity-100"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                </div>
               </td>
               {/* Calculated columns */}
               {CALC_COLUMNS.map((col) => {
                 const isShipping = col.unitKey === "shipping";
                 const isCustoms = col.unitKey === "customs";
+                const isProfit = col.unitKey === "profit";
                 const overrideField: OverrideField | null = isShipping
                   ? "shippingOverride"
                   : isCustoms
                   ? "customsOverride"
                   : null;
-                const isOverridden = isShipping
+                const isValueOverridden = isShipping
                   ? row.shippingIsOverridden
                   : isCustoms
                   ? row.customsIsOverridden
+                  : false;
+                const isRateOverridden = isShipping
+                  ? row.shippingRateIsOverridden
+                  : isCustoms
+                  ? row.customsRateIsOverridden
+                  : isProfit
+                  ? row.profitRateIsOverridden
                   : false;
                 const overrideValue = overrideField ? (rows[i][overrideField] ?? null) : null;
                 const calcValue = row.priceUsd ? (row as any)[col.unitKey] : null;
@@ -362,12 +440,13 @@ export function ProductTable({ rows, constants, onChange, targetCurrency }: Prop
                         "border-l border-gray-100 px-2 py-1.5 text-right font-mono whitespace-nowrap",
                         col.color,
                         col.highlight && "bg-gray-50",
-                        overrideField && "group/cell"
+                        overrideField && "group/cell",
+                        isRateOverridden && "bg-amber-50/50"
                       )}
                     >
                       {overrideField ? (
                         <div className="flex items-center justify-end gap-1">
-                          {isOverridden ? (
+                          {isValueOverridden ? (
                             <input
                               type="number"
                               min="0"
@@ -389,20 +468,20 @@ export function ProductTable({ rows, constants, onChange, targetCurrency }: Prop
                             </span>
                           )}
                           <button
-                            title={isOverridden ? "Lock (use calculated value)" : "Unlock to override"}
+                            title={isValueOverridden ? "Lock (use calculated value)" : "Unlock to override"}
                             onClick={() =>
                               toggleOverride(i, overrideField, calcValue ?? 0)
                             }
                             className={cn(
                               "rounded p-0.5 transition-colors flex-shrink-0",
-                              isOverridden
+                              isValueOverridden
                                 ? isShipping
                                   ? "text-blue-500 hover:text-blue-700 hover:bg-blue-50"
                                   : "text-purple-500 hover:text-purple-700 hover:bg-purple-50"
                                 : "text-gray-300 hover:text-gray-500 hover:bg-gray-100 opacity-0 group-hover/cell:opacity-100"
                             )}
                           >
-                            {isOverridden ? <Unlock size={10} /> : <Lock size={10} />}
+                            {isValueOverridden ? <Unlock size={10} /> : <Lock size={10} />}
                           </button>
                         </div>
                       ) : (
@@ -413,7 +492,8 @@ export function ProductTable({ rows, constants, onChange, targetCurrency }: Prop
                       key={`${col.label}-total`}
                       className={cn(
                         "px-3 py-2.5 text-right font-mono whitespace-nowrap text-gray-500",
-                        col.highlight && "bg-gray-50 !text-gray-800 font-medium"
+                        col.highlight && "bg-gray-50 !text-gray-800 font-medium",
+                        isRateOverridden && "bg-amber-50/50"
                       )}
                     >
                       {row.priceUsd ? N((row as any)[col.totalKey]) : "—"}
@@ -431,7 +511,12 @@ export function ProductTable({ rows, constants, onChange, targetCurrency }: Prop
             <td className="sticky left-10 z-10 bg-gray-100 px-3 py-3 text-sm font-bold text-gray-700">
               TOTALS
             </td>
-            <td className="px-3 py-3" />
+            {/* USD /unit */}
+            <td className="border-l border-gray-100 px-3 py-3" />
+            {/* USD total */}
+            <td className="px-3 py-3 text-right font-mono font-bold whitespace-nowrap text-gray-700">
+              {N(totals.usdTotal)}
+            </td>
             <td className="px-3 py-3" />
             <td className="px-3 py-3" />
             {CALC_COLUMNS.map((col) => (
@@ -457,6 +542,201 @@ export function ProductTable({ rows, constants, onChange, targetCurrency }: Prop
           </tr>
         </tfoot>
       </table>
+    </div>
+  );
+}
+
+// ── Per-row rate override popover ───────────────────────────────────────────
+interface RowRateOverridesProps {
+  row: Row;
+  index: number;
+  constants: Constants;
+  isOpen: boolean;
+  onOpen: () => void;
+  onClose: () => void;
+  onUpdate: (field: RateOverrideField, value: number | null) => void;
+  hasOverride: boolean;
+}
+
+function RowRateOverrides({
+  row,
+  constants,
+  isOpen,
+  onOpen,
+  onClose,
+  onUpdate,
+  hasOverride,
+}: RowRateOverridesProps) {
+  const popoverRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleClick = (e: MouseEvent) => {
+      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+        onClose();
+      }
+    };
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("mousedown", handleClick);
+    document.addEventListener("keydown", handleEsc);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("keydown", handleEsc);
+    };
+  }, [isOpen, onClose]);
+
+  const fields: {
+    key: RateOverrideField;
+    label: string;
+    color: string;
+    ringColor: string;
+    global: number;
+  }[] = [
+    {
+      key: "shippingRateOverride",
+      label: "Shipping",
+      color: "text-blue-600",
+      ringColor: "focus:border-blue-400",
+      global: constants.shippingRate,
+    },
+    {
+      key: "customsRateOverride",
+      label: "Customs",
+      color: "text-purple-600",
+      ringColor: "focus:border-purple-400",
+      global: constants.customsRate,
+    },
+    {
+      key: "profitRateOverride",
+      label: "Profit",
+      color: "text-emerald-600",
+      ringColor: "focus:border-emerald-400",
+      global: constants.profitMargin,
+    },
+  ];
+
+  const displayPct = (v: number | null | undefined, fallback: number) => {
+    const used = v != null ? v : fallback;
+    return (used * 100).toFixed(2);
+  };
+
+  const handleChange = (key: RateOverrideField, raw: string) => {
+    if (raw.trim() === "") {
+      onUpdate(key, null);
+      return;
+    }
+    const parsed = parseFloat(raw);
+    if (isNaN(parsed)) return;
+    onUpdate(key, parsed / 100);
+  };
+
+  const resetField = (key: RateOverrideField) => {
+    onUpdate(key, null);
+  };
+
+  const resetAll = () => {
+    onUpdate("shippingRateOverride", null);
+    onUpdate("customsRateOverride", null);
+    onUpdate("profitRateOverride", null);
+  };
+
+  return (
+    <div className="relative">
+      <button
+        title={hasOverride ? "Custom rates set — click to edit" : "Set per-row rate overrides"}
+        onClick={isOpen ? onClose : onOpen}
+        className={cn(
+          "rounded p-1 transition-colors",
+          hasOverride
+            ? "text-amber-600 hover:bg-amber-50"
+            : "text-gray-300 opacity-0 hover:bg-gray-100 hover:text-gray-600 group-hover:opacity-100"
+        )}
+      >
+        <Settings2 size={12} />
+      </button>
+
+      {isOpen && (
+        <div
+          ref={popoverRef}
+          className="absolute left-8 top-0 z-30 w-72 rounded-xl border border-gray-200 bg-white p-3 shadow-xl"
+        >
+          <div className="mb-2 flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold text-gray-700">Per-row rates</p>
+              <p className="text-[10px] text-gray-400">
+                Override global % for this row only
+              </p>
+            </div>
+            {hasOverride && (
+              <button
+                onClick={resetAll}
+                title="Reset all to global"
+                className="flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+              >
+                <RotateCcw size={10} />
+                Reset
+              </button>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            {fields.map((f) => {
+              const isOverridden = row[f.key] != null;
+              return (
+                <div key={f.key} className="flex items-center gap-2">
+                  <label
+                    className={cn(
+                      "flex-1 text-xs font-medium",
+                      isOverridden ? f.color : "text-gray-500"
+                    )}
+                  >
+                    {f.label}
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={displayPct(row[f.key], f.global)}
+                      onChange={(e) => handleChange(f.key, e.target.value)}
+                      className={cn(
+                        "w-24 rounded-md border bg-white py-1 pl-2 pr-5 text-right font-mono text-xs",
+                        "focus:outline-none",
+                        isOverridden
+                          ? cn("border-amber-300 text-amber-700", f.ringColor)
+                          : "border-gray-200 text-gray-700 focus:border-gray-400"
+                      )}
+                      placeholder={(f.global * 100).toFixed(2)}
+                    />
+                    <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-gray-400">
+                      %
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => resetField(f.key)}
+                    disabled={!isOverridden}
+                    title="Reset to global"
+                    className={cn(
+                      "rounded p-1 transition-colors",
+                      isOverridden
+                        ? "text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                        : "text-gray-200 cursor-not-allowed"
+                    )}
+                  >
+                    <RotateCcw size={10} />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+
+          <p className="mt-3 border-t border-gray-100 pt-2 text-[10px] text-gray-400">
+            Leave blank to use the global project rate.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

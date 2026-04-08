@@ -92,6 +92,22 @@ export async function ensureSchema() {
       ADD COLUMN IF NOT EXISTS color TEXT NOT NULL DEFAULT 'cyan'
     `);
 
+    // product_lines: per-row rate overrides (shipping, customs, profit) —
+    // decimal percentages that take precedence over global constants for
+    // a single row. Added idempotently for existing deployments.
+    await db.execute(sql`
+      ALTER TABLE product_lines
+      ADD COLUMN IF NOT EXISTS shipping_rate_override NUMERIC(10, 6)
+    `);
+    await db.execute(sql`
+      ALTER TABLE product_lines
+      ADD COLUMN IF NOT EXISTS customs_rate_override NUMERIC(10, 6)
+    `);
+    await db.execute(sql`
+      ALTER TABLE product_lines
+      ADD COLUMN IF NOT EXISTS profit_rate_override NUMERIC(10, 6)
+    `);
+
     // user_manufacturers — per-user color/tag for each manufacturer
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS user_manufacturers (

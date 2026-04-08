@@ -141,6 +141,11 @@ export const productLines = pgTable(
     quantity: integer("quantity").notNull().default(1),
     shippingOverride: numeric("shipping_override", { precision: 12, scale: 4 }),
     customsOverride: numeric("customs_override", { precision: 12, scale: 4 }),
+    // Per-row rate overrides (decimal, e.g. 0.15 = 15%). When set, they
+    // take precedence over the global project constants for this row only.
+    shippingRateOverride: numeric("shipping_rate_override", { precision: 10, scale: 6 }),
+    customsRateOverride: numeric("customs_rate_override", { precision: 10, scale: 6 }),
+    profitRateOverride: numeric("profit_rate_override", { precision: 10, scale: 6 }),
   },
   (t) => [unique().on(t.projectId, t.position)]
 );

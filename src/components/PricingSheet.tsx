@@ -23,14 +23,29 @@ interface ProductRow {
   quantity: number;
   shippingOverride?: number | null;
   customsOverride?: number | null;
+  shippingRateOverride?: number | null;
+  customsRateOverride?: number | null;
+  profitRateOverride?: number | null;
 }
 
 interface Props {
   manufacturerId: number;
   manufacturerName: string;
+  /** If set, the sheet tries to auto-select this project id after load
+   *  (overrides the default first-project auto-select). Changing this
+   *  value at runtime also switches selection. */
+  initialProjectId?: number | null;
+  /** Increment this number from the parent to force a refresh of the
+   *  project list (e.g. after a backup restore). */
+  reloadKey?: number;
 }
 
-export function PricingSheet({ manufacturerId, manufacturerName }: Props) {
+export function PricingSheet({
+  manufacturerId,
+  manufacturerName,
+  initialProjectId,
+  reloadKey = 0,
+}: Props) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const [constants, setConstants] = useState<Constants>(DEFAULT_CONSTANTS);
@@ -52,7 +67,8 @@ export function PricingSheet({ manufacturerId, manufacturerName }: Props) {
   // Track whether we've done the initial project auto-select
   const initialSelectDone = useRef(false);
 
-  // Load projects list — only re-runs when manufacturerId changes
+  // Load projects list — only re-runs when manufacturerId changes or
+  // when the parent bumps reloadKey (e.g. after a restore).
   const loadProjects = useCallback(async () => {
     setProjectsLoading(true);
     try {
@@ -60,20 +76,38 @@ export function PricingSheet({ manufacturerId, manufacturerName }: Props) {
       if (res.ok) {
         const data: Project[] = await res.json();
         setProjects(data);
-        // Auto-select first project on initial load only
+        // Auto-select on initial load. If the parent gave us an
+        // initialProjectId we honour it; otherwise pick the first.
         if (!initialSelectDone.current && data.length > 0) {
           initialSelectDone.current = true;
-          setSelectedProjectId(data[0].id);
+          const preferred =
+            initialProjectId != null &&
+            data.some((p) => p.id === initialProjectId)
+              ? initialProjectId
+              : data[0].id;
+          setSelectedProjectId(preferred);
         }
       }
     } finally {
       setProjectsLoading(false);
     }
-  }, [manufacturerId]);
+  }, [manufacturerId, initialProjectId]);
 
   useEffect(() => {
     loadProjects();
-  }, [loadProjects]);
+  }, [loadProjects, reloadKey]);
+
+  // If the parent supplies a new initialProjectId at runtime (e.g. user
+  // picked a result from global search), switch to it without losing
+  // unsaved edits to the current project.
+  useEffect(() => {
+    if (initialProjectId == null) return;
+    if (initialProjectId === selectedProjectId) return;
+    // Only honour it when the project is in our loaded list.
+    if (projects.some((p) => p.id === initialProjectId)) {
+      setSelectedProjectId(initialProjectId);
+    }
+  }, [initialProjectId, projects, selectedProjectId]);
 
   // Load project data when selection changes
   useEffect(() => {
@@ -117,6 +151,9 @@ export function PricingSheet({ manufacturerId, manufacturerName }: Props) {
               quantity: l.quantity,
               shippingOverride: l.shippingOverride != null ? parseFloat(l.shippingOverride) : null,
               customsOverride: l.customsOverride != null ? parseFloat(l.customsOverride) : null,
+              shippingRateOverride: l.shippingRateOverride != null ? parseFloat(l.shippingRateOverride) : null,
+              customsRateOverride: l.customsRateOverride != null ? parseFloat(l.customsRateOverride) : null,
+              profitRateOverride: l.profitRateOverride != null ? parseFloat(l.profitRateOverride) : null,
             }))
           );
         }
