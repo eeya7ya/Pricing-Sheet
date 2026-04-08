@@ -22,12 +22,23 @@ export async function GET(req: Request) {
 
     const mfgId = parseInt(manufacturerId);
 
+    // Optional ownerUserId lets admin pages scope a manufacturer view to a
+    // single owner — so when admin opens "HIKVISION" from user X's card,
+    // they only see user X's projects, not a blended list.
+    const ownerParam = searchParams.get("ownerUserId");
+    const ownerUserId = ownerParam != null ? parseInt(ownerParam, 10) : NaN;
+    const hasOwnerFilter = Number.isFinite(ownerUserId);
+
     // Shared manufacturers: any signed-in user can list projects, but
-    // non-admins only see their own projects.
+    // non-admins only see their own projects. Admins honour the optional
+    // ownerUserId filter so cross-user bleed can't happen.
     const all = await db.query.projects.findMany({
       where: (p, { eq, isNull, and }) => {
         const base = and(eq(p.manufacturerId, mfgId), isNull(p.deletedAt));
-        if (user.role === "admin") return base;
+        if (user.role === "admin") {
+          if (hasOwnerFilter) return and(base, eq(p.userId, ownerUserId));
+          return base;
+        }
         return and(base, eq(p.userId, user.id));
       },
       orderBy: (p, { asc }) => [asc(p.createdAt)],
@@ -46,7 +57,7 @@ export async function POST(req: Request) {
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { name, manufacturerId } = await req.json();
+    const { name, manufacturerId, ownerUserId: ownerUserIdRaw } = await req.json();
     if (!name?.trim()) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
     }
@@ -56,9 +67,23 @@ export async function POST(req: Request) {
 
     const mfgId = parseInt(manufacturerId);
 
+    // If an admin is acting inside another user's manufacturer view, the
+    // client sends that user's id so the new project is attributed to
+    // them. Non-admins always own what they create.
+    const requestedOwnerId =
+      typeof ownerUserIdRaw === "number"
+        ? ownerUserIdRaw
+        : typeof ownerUserIdRaw === "string"
+          ? parseInt(ownerUserIdRaw, 10)
+          : NaN;
+    const ownerId =
+      user.role === "admin" && Number.isFinite(requestedOwnerId)
+        ? requestedOwnerId
+        : user.id;
+
     const [project] = await db
       .insert(projects)
-      .values({ name: name.trim(), manufacturerId: mfgId, userId: user.id })
+      .values({ name: name.trim(), manufacturerId: mfgId, userId: ownerId })
       .returning();
 
     await db.insert(projectConstants).values({ projectId: project.id });

@@ -81,7 +81,7 @@ async function ensureManufacturerAccess(
 
 // ─── GET: export all projects in this manufacturer ───────────────────────────
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -99,12 +99,23 @@ export async function GET(
       return NextResponse.json({ error: access.error }, { status: access.status });
     }
 
+    const { searchParams } = new URL(req.url);
+    const ownerParam = searchParams.get("ownerUserId");
+    const ownerUserId =
+      ownerParam != null && Number.isFinite(parseInt(ownerParam, 10))
+        ? parseInt(ownerParam, 10)
+        : null;
+
     // Fetch projects the user can see in this manufacturer. Non-admins
-    // only see their own projects.
+    // only see their own projects. Admins may scope the export to a single
+    // owning user via ?ownerUserId=.
     const projectRows = await db.query.projects.findMany({
       where: (p, { eq, isNull, and }) => {
         const base = and(eq(p.manufacturerId, mfgId), isNull(p.deletedAt));
-        if (user.role === "admin") return base;
+        if (user.role === "admin") {
+          if (ownerUserId != null) return and(base, eq(p.userId, ownerUserId));
+          return base;
+        }
         return and(base, eq(p.userId, user.id));
       },
       orderBy: (p, { asc }) => [asc(p.createdAt)],
@@ -224,6 +235,18 @@ export async function POST(
       return NextResponse.json({ error: access.error }, { status: access.status });
     }
 
+    const { searchParams } = new URL(req.url);
+    const ownerParam = searchParams.get("ownerUserId");
+    const requestedOwnerId =
+      ownerParam != null && Number.isFinite(parseInt(ownerParam, 10))
+        ? parseInt(ownerParam, 10)
+        : null;
+    // Only admins can attribute restored projects to a different user.
+    const restoreOwnerId =
+      user.role === "admin" && requestedOwnerId != null
+        ? requestedOwnerId
+        : user.id;
+
     const body = (await req.json()) as Partial<BackupPayload> | null;
     if (!body || typeof body !== "object") {
       return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
@@ -255,7 +278,7 @@ export async function POST(
           name,
           date: bp.date ?? null,
           manufacturerId: mfgId,
-          userId: user.id,
+          userId: restoreOwnerId,
         })
         .returning();
 

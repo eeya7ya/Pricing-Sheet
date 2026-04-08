@@ -9,6 +9,7 @@ interface SearchHit {
   id: number;
   name: string;
   date: string | null;
+  ownerUserId: number | null;
   manufacturerId: number;
   manufacturerName: string;
   manufacturerColor?: string | null;
@@ -19,6 +20,9 @@ interface SearchHit {
 interface Props {
   /** When set, search can be scoped to only this manufacturer via a toggle */
   currentManufacturerId?: number;
+  /** When admin is viewing a manufacturer scoped to one owning user, pass
+   *  that user id so "This manufacturer" search doesn't bleed across users. */
+  currentOwnerUserId?: number | null;
   /** Callback when a result inside the current manufacturer is selected */
   onLocalSelect?: (projectId: number) => void;
   /** Placeholder shown in the search input */
@@ -34,6 +38,7 @@ interface Props {
  */
 export function GlobalProjectSearch({
   currentManufacturerId,
+  currentOwnerUserId,
   onLocalSelect,
   placeholder = "Search projects…",
 }: Props) {
@@ -73,6 +78,9 @@ export function GlobalProjectSearch({
         const params = new URLSearchParams({ q });
         if (scope === "local" && currentManufacturerId) {
           params.set("manufacturerId", String(currentManufacturerId));
+          if (currentOwnerUserId != null) {
+            params.set("ownerUserId", String(currentOwnerUserId));
+          }
         }
         const res = await fetch(`/api/projects/search?${params.toString()}`, {
           signal: controller.signal,
@@ -93,7 +101,7 @@ export function GlobalProjectSearch({
       clearTimeout(timeout);
       controller.abort();
     };
-  }, [query, scope, currentManufacturerId]);
+  }, [query, scope, currentManufacturerId, currentOwnerUserId]);
 
   const handleSelect = (hit: SearchHit) => {
     setOpen(false);
@@ -104,7 +112,10 @@ export function GlobalProjectSearch({
       onLocalSelect(hit.id);
       return;
     }
-    router.push(`/manufacturer/${hit.manufacturerId}?project=${hit.id}`);
+    // Preserve owner scoping across navigation so the landing page shows
+    // only the correct user's projects, not a blended admin view.
+    const ownerQuery = hit.ownerUserId != null ? `&owner=${hit.ownerUserId}` : "";
+    router.push(`/manufacturer/${hit.manufacturerId}?project=${hit.id}${ownerQuery}`);
   };
 
   const canScopeLocal = currentManufacturerId != null;

@@ -289,6 +289,7 @@ export default function DashboardPage() {
                 color={m.color}
                 tag={m.tag}
                 projectCount={m.projectCount}
+                ownerUserId={m.ownerUserId}
                 onDelete={isAdmin ? handleDelete : undefined}
               />
             </div>

@@ -31,6 +31,13 @@ export default function ManufacturerPage() {
     initialProjectParam ? parseInt(initialProjectParam, 10) : null
   );
 
+  // Owner scope: when admin opens this manufacturer from a specific user's
+  // card we want to show only that user's projects, not every project under
+  // the manufacturer. The owning user id arrives as ?owner= from the card
+  // link or from global search navigation.
+  const ownerParam = searchParams.get("owner");
+  const ownerUserId = ownerParam ? parseInt(ownerParam, 10) : null;
+
   // Counter bumped after a backup restore to force PricingSheet to
   // re-fetch its project list.
   const [reloadKey, setReloadKey] = useState(0);
@@ -149,16 +156,30 @@ export default function ManufacturerPage() {
           <div className="flex flex-wrap items-center gap-3">
             <GlobalProjectSearch
               currentManufacturerId={id}
+              currentOwnerUserId={ownerUserId}
               onLocalSelect={(projectId) => {
-                // Update the URL so refreshes stay on the same project,
-                // and push the new id through to PricingSheet.
-                router.replace(`/manufacturer/${id}?project=${projectId}`);
+                // Update the URL so refreshes stay on the same project.
+                // Using window.history.replaceState (instead of
+                // router.replace) avoids re-running the Next.js route —
+                // router.replace was triggering a full page re-render and
+                // freezing the UI while the search dropdown was still
+                // visible.
+                if (typeof window !== "undefined") {
+                  const params = new URLSearchParams(window.location.search);
+                  params.set("project", String(projectId));
+                  window.history.replaceState(
+                    null,
+                    "",
+                    `${window.location.pathname}?${params.toString()}`
+                  );
+                }
                 setRequestedProjectId(projectId);
               }}
             />
             <ManufacturerBackup
               manufacturerId={id}
               manufacturerName={manufacturer.name}
+              ownerUserId={ownerUserId}
               onRestored={() => setReloadKey((k) => k + 1)}
             />
           </div>
@@ -171,6 +192,7 @@ export default function ManufacturerPage() {
         manufacturerName={manufacturer?.name ?? ""}
         initialProjectId={requestedProjectId}
         reloadKey={reloadKey}
+        ownerUserId={ownerUserId}
       />
     </div>
   );

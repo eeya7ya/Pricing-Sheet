@@ -38,6 +38,10 @@ interface Props {
   /** Increment this number from the parent to force a refresh of the
    *  project list (e.g. after a backup restore). */
   reloadKey?: number;
+  /** Admin-only: scopes the projects view to a specific owning user so the
+   *  same manufacturer viewed from two different user cards shows two
+   *  separate project lists. */
+  ownerUserId?: number | null;
 }
 
 export function PricingSheet({
@@ -45,6 +49,7 @@ export function PricingSheet({
   manufacturerName,
   initialProjectId,
   reloadKey = 0,
+  ownerUserId,
 }: Props) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
@@ -67,12 +72,23 @@ export function PricingSheet({
   // Track whether we've done the initial project auto-select
   const initialSelectDone = useRef(false);
 
+  // Keep the latest initialProjectId in a ref so loadProjects can read it
+  // without being added to its dependency list — otherwise we'd re-fetch
+  // the whole project list (and re-render everything) on every search
+  // result click, which was freezing the page.
+  const initialProjectIdRef = useRef<number | null | undefined>(initialProjectId);
+  useEffect(() => {
+    initialProjectIdRef.current = initialProjectId;
+  }, [initialProjectId]);
+
   // Load projects list — only re-runs when manufacturerId changes or
   // when the parent bumps reloadKey (e.g. after a restore).
   const loadProjects = useCallback(async () => {
     setProjectsLoading(true);
     try {
-      const res = await fetch(`/api/projects?manufacturerId=${manufacturerId}`);
+      const params = new URLSearchParams({ manufacturerId: String(manufacturerId) });
+      if (ownerUserId != null) params.set("ownerUserId", String(ownerUserId));
+      const res = await fetch(`/api/projects?${params.toString()}`);
       if (res.ok) {
         const data: Project[] = await res.json();
         setProjects(data);
@@ -80,10 +96,10 @@ export function PricingSheet({
         // initialProjectId we honour it; otherwise pick the first.
         if (!initialSelectDone.current && data.length > 0) {
           initialSelectDone.current = true;
+          const wantId = initialProjectIdRef.current;
           const preferred =
-            initialProjectId != null &&
-            data.some((p) => p.id === initialProjectId)
-              ? initialProjectId
+            wantId != null && data.some((p) => p.id === wantId)
+              ? wantId
               : data[0].id;
           setSelectedProjectId(preferred);
         }
@@ -91,7 +107,7 @@ export function PricingSheet({
     } finally {
       setProjectsLoading(false);
     }
-  }, [manufacturerId, initialProjectId]);
+  }, [manufacturerId, ownerUserId]);
 
   useEffect(() => {
     loadProjects();
@@ -209,14 +225,14 @@ export function PricingSheet({
     const res = await fetch("/api/projects", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, manufacturerId }),
+      body: JSON.stringify({ name, manufacturerId, ownerUserId }),
     });
     if (res.ok) {
       const project = await res.json();
       await loadProjects();
       setSelectedProjectId(project.id);
     }
-  }, [manufacturerId, loadProjects]);
+  }, [manufacturerId, ownerUserId, loadProjects]);
 
   const handleAddRow = useCallback(() => {
     setRows((prev) => [
