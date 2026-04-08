@@ -12,6 +12,7 @@ import {
   User,
   ChevronDown,
   Activity,
+  UserCog,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
@@ -122,6 +123,14 @@ export function Navigation() {
                         {user.role}
                       </span>
                     </div>
+                    <Link
+                      href="/profile"
+                      onClick={() => setShowUserMenu(false)}
+                      className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-cyan-600 transition-colors"
+                    >
+                      <UserCog className="h-4 w-4" />
+                      Profile settings
+                    </Link>
                     <button
                       onClick={() => {
                         setShowUserMenu(false);
