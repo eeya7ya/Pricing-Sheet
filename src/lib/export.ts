@@ -16,7 +16,8 @@ export function exportToCsv(
   constants: Constants,
   projectName: string,
   manufacturerName: string,
-  targetCurrency = "JOD"
+  targetCurrency = "JOD",
+  responsiblePerson?: string | null
 ) {
   const calculated = rows.map((r) => ({ ...r, ...calculateRow(r, constants) }));
   const totals = calculateTotals(calculated);
@@ -106,6 +107,7 @@ export function exportToCsv(
 
   const csvLines = [
     `"${manufacturerName} – ${projectName}"`,
+    ...(responsiblePerson ? [`"Responsible: ${responsiblePerson}"`] : []),
     `"Exported: ${new Date().toLocaleString()}"`,
     "",
     headers.join(","),
@@ -200,7 +202,8 @@ export function exportToPrint(
   constants: Constants,
   projectName: string,
   manufacturerName: string,
-  targetCurrency = "JOD"
+  targetCurrency = "JOD",
+  responsiblePerson?: string | null
 ) {
   const cur = targetCurrency;
   const activeRows = rows.filter((r) => r.priceUsd > 0 && r.itemModel);
@@ -365,7 +368,7 @@ export function exportToPrint(
     <div class="header">
       <div>
         <div class="title">${manufacturerName}</div>
-        <div class="subtitle">Project: ${projectName} &nbsp;·&nbsp; Currency: ${cur} &nbsp;·&nbsp; Rate: 1 USD = ${constants.currencyRate} ${cur}</div>
+        <div class="subtitle">Project: ${projectName}${responsiblePerson ? ` &nbsp;·&nbsp; Responsible: ${responsiblePerson}` : ""} &nbsp;·&nbsp; Currency: ${cur} &nbsp;·&nbsp; Rate: 1 USD = ${constants.currencyRate} ${cur}</div>
       </div>
       <div class="meta">
         Exported: ${new Date().toLocaleString()}<br/>

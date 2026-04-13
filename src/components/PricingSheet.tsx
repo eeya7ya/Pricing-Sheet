@@ -13,6 +13,7 @@ interface Project {
   id: number;
   name: string;
   date?: string | null;
+  responsiblePerson?: string | null;
 }
 
 interface ProductRow {
@@ -68,6 +69,7 @@ export function PricingSheet({
   // Editable project meta
   const [projectName, setProjectName] = useState("");
   const [projectDate, setProjectDate] = useState("");
+  const [responsiblePerson, setResponsiblePerson] = useState("");
 
   // Track whether we've done the initial project auto-select
   const initialSelectDone = useRef(false);
@@ -143,6 +145,7 @@ export function PricingSheet({
         if (data.project) {
           setProjectName(data.project.name ?? "");
           setProjectDate(data.project.date ?? "");
+          setResponsiblePerson(data.project.responsiblePerson ?? "");
         }
 
         if (data.constants) {
@@ -196,6 +199,7 @@ export function PricingSheet({
         body: JSON.stringify({
           name: projectName,
           date: projectDate || null,
+          responsiblePerson: responsiblePerson || null,
           constants: { ...constants, targetCurrency, sourceCurrency },
           productLines: rows,
         }),
@@ -211,7 +215,9 @@ export function PricingSheet({
         }
         setProjects((prev) =>
           prev.map((p) =>
-            p.id === selectedProjectId ? { ...p, name: projectName, date: projectDate || null } : p
+            p.id === selectedProjectId
+              ? { ...p, name: projectName, date: projectDate || null, responsiblePerson: responsiblePerson || null }
+              : p
           )
         );
         setSavedAt(new Date());
@@ -219,7 +225,7 @@ export function PricingSheet({
     } finally {
       setSaving(false);
     }
-  }, [selectedProjectId, saving, projectName, projectDate, constants, targetCurrency, rows]);
+  }, [selectedProjectId, saving, projectName, projectDate, responsiblePerson, constants, targetCurrency, rows]);
 
   const handleCreateProject = useCallback(async (name: string) => {
     const res = await fetch("/api/projects", {
@@ -280,15 +286,15 @@ export function PricingSheet({
 
   const handleExportCsv = useCallback(() => {
     if (!selectedProject || rows.length === 0) return;
-    exportToCsv(rows, constants, projectName || selectedProject.name, manufacturerName, targetCurrency);
+    exportToCsv(rows, constants, projectName || selectedProject.name, manufacturerName, targetCurrency, responsiblePerson);
     setShowExportMenu(false);
-  }, [selectedProject, rows, constants, projectName, manufacturerName, targetCurrency]);
+  }, [selectedProject, rows, constants, projectName, manufacturerName, targetCurrency, responsiblePerson]);
 
   const handleExportPrint = useCallback(() => {
     if (!selectedProject || rows.length === 0) return;
-    exportToPrint(rows, constants, projectName || selectedProject.name, manufacturerName, targetCurrency);
+    exportToPrint(rows, constants, projectName || selectedProject.name, manufacturerName, targetCurrency, responsiblePerson);
     setShowExportMenu(false);
-  }, [selectedProject, rows, constants, projectName, manufacturerName, targetCurrency]);
+  }, [selectedProject, rows, constants, projectName, manufacturerName, targetCurrency, responsiblePerson]);
 
   return (
     <div className="space-y-5">
@@ -310,6 +316,13 @@ export function PricingSheet({
                 value={projectName}
                 onChange={(e) => setProjectName(e.target.value)}
                 placeholder="Project name…"
+                className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 placeholder-gray-400 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
+              />
+              <input
+                type="text"
+                value={responsiblePerson}
+                onChange={(e) => setResponsiblePerson(e.target.value)}
+                placeholder="Responsible person…"
                 className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 placeholder-gray-400 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
               />
               <input

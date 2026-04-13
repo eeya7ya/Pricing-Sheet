@@ -40,6 +40,7 @@ interface BackupConstants {
 interface BackupProject {
   name: string;
   date: string | null;
+  responsiblePerson: string | null;
   createdAt: string;
   constants: BackupConstants | null;
   productLines: BackupLine[];
@@ -186,6 +187,7 @@ export async function GET(
         return {
           name: p.name,
           date: p.date ?? null,
+          responsiblePerson: p.responsiblePerson ?? null,
           createdAt: p.createdAt.toISOString(),
           constants,
           productLines: lineMap.get(p.id) ?? [],
@@ -277,6 +279,7 @@ export async function POST(
         .values({
           name,
           date: bp.date ?? null,
+          responsiblePerson: typeof bp.responsiblePerson === "string" ? bp.responsiblePerson : null,
           manufacturerId: mfgId,
           userId: restoreOwnerId,
         })

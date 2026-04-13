@@ -110,6 +110,7 @@ export async function GET(req: Request) {
         id: projects.id,
         name: projects.name,
         date: projects.date,
+        responsiblePerson: projects.responsiblePerson,
         createdAt: projects.createdAt,
         ownerUserId: projects.userId,
         manufacturerId: projects.manufacturerId,
