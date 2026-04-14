@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Save, Plus, Trash2, Download, FileSpreadsheet, Printer, FolderMinus } from "lucide-react";
+import { Save, Plus, Trash2, Download, FileSpreadsheet, Printer, FolderMinus, Send } from "lucide-react";
 import { ProjectSelector } from "./ProjectSelector";
 import { ConstantsPanel } from "./ConstantsPanel";
 import { ProductTable } from "./ProductTable";
@@ -65,6 +65,10 @@ export function PricingSheet({
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  // AdvancedGate transfer state — one-shot status message shown next to
+  // the "Send to AdvancedGate" button.
+  const [sendingToAG, setSendingToAG] = useState(false);
+  const [agStatus, setAgStatus] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
 
   // Editable project meta
   const [projectName, setProjectName] = useState("");
@@ -296,6 +300,48 @@ export function PricingSheet({
     setShowExportMenu(false);
   }, [selectedProject, rows, constants, projectName, manufacturerName, targetCurrency, responsiblePerson]);
 
+  // Transfer the current pricing project into AdvancedGate as a
+  // "waiting to assign" quotation. We save first so the server-side
+  // route sees the latest rows, then call our integration API.
+  const handleSendToAdvancedGate = useCallback(async () => {
+    if (!selectedProjectId || sendingToAG) return;
+    if (rows.length === 0) {
+      setAgStatus({ kind: "err", text: "Add at least one product line first" });
+      return;
+    }
+    setSendingToAG(true);
+    setAgStatus(null);
+    try {
+      // Persist any unsaved edits so the transfer uses fresh data.
+      await handleSave();
+      const res = await fetch("/api/integrations/advancedgate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId: selectedProjectId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setAgStatus({
+          kind: "err",
+          text: (data as { error?: string }).error ?? `Failed (${res.status})`,
+        });
+      } else {
+        const d = data as { quotationId?: number; lineCount?: number };
+        setAgStatus({
+          kind: "ok",
+          text: d.quotationId
+            ? `Sent · Quotation #${d.quotationId} (${d.lineCount ?? 0} lines)`
+            : "Sent to AdvancedGate",
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      setAgStatus({ kind: "err", text: "Network error" });
+    } finally {
+      setSendingToAG(false);
+    }
+  }, [selectedProjectId, sendingToAG, rows.length, handleSave]);
+
   return (
     <div className="space-y-5">
       {/* Header row */}
@@ -363,6 +409,31 @@ export function PricingSheet({
                 {saving ? "Saving…" : "Save"}
               </button>
             </>
+          )}
+
+          {/* Send to AdvancedGate */}
+          {selectedProjectId && rows.length > 0 && (
+            <div className="flex items-center gap-2">
+              {agStatus && (
+                <span
+                  className={
+                    "text-xs " +
+                    (agStatus.kind === "ok" ? "text-emerald-600" : "text-rose-600")
+                  }
+                >
+                  {agStatus.text}
+                </span>
+              )}
+              <button
+                onClick={handleSendToAdvancedGate}
+                disabled={sendingToAG}
+                title="Create a waiting-to-assign quotation in AdvancedGate"
+                className="flex items-center gap-1.5 rounded-lg bg-orange-500 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-orange-400 disabled:opacity-60"
+              >
+                <Send className="h-3.5 w-3.5" />
+                {sendingToAG ? "Sending…" : "Send to AdvancedGate"}
+              </button>
+            </div>
           )}
 
           {/* Export button */}
