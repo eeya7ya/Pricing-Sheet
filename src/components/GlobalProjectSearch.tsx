@@ -9,6 +9,7 @@ interface SearchHit {
   id: number;
   name: string;
   date: string | null;
+  responsiblePerson?: string | null;
   ownerUserId: number | null;
   manufacturerId: number;
   manufacturerName: string;
@@ -202,6 +203,9 @@ export function GlobalProjectSearch({
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-medium text-gray-800">
                       {hit.name}
+                      {hit.responsiblePerson && (
+                        <span className="ml-1.5 text-xs font-normal text-gray-400">— {hit.responsiblePerson}</span>
+                      )}
                     </div>
                     <div className="mt-0.5 flex items-center gap-1.5 truncate text-[11px] text-gray-500">
                       <span className="truncate">{hit.manufacturerName}</span>

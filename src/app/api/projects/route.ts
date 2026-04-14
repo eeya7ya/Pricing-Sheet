@@ -57,7 +57,7 @@ export async function POST(req: Request) {
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { name, manufacturerId, ownerUserId: ownerUserIdRaw } = await req.json();
+    const { name, manufacturerId, responsiblePerson, ownerUserId: ownerUserIdRaw } = await req.json();
     if (!name?.trim()) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
     }
@@ -83,7 +83,12 @@ export async function POST(req: Request) {
 
     const [project] = await db
       .insert(projects)
-      .values({ name: name.trim(), manufacturerId: mfgId, userId: ownerId })
+      .values({
+        name: name.trim(),
+        responsiblePerson: responsiblePerson?.trim() || null,
+        manufacturerId: mfgId,
+        userId: ownerId,
+      })
       .returning();
 
     await db.insert(projectConstants).values({ projectId: project.id });

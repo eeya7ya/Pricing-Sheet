@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 interface Project {
   id: number;
   name: string;
+  responsiblePerson?: string | null;
 }
 
 interface Props {
@@ -62,7 +63,14 @@ export function ProjectSelector({
       >
         <Folder className="h-3.5 w-3.5 text-cyan-500" />
         <span className="text-gray-700">
-          {selected ? selected.name : "Select Project…"}
+          {selected
+            ? <>
+                {selected.name}
+                {selected.responsiblePerson && (
+                  <span className="ml-1.5 text-xs text-gray-400">— {selected.responsiblePerson}</span>
+                )}
+              </>
+            : "Select Project…"}
         </span>
         <ChevronDown
           className={cn(
@@ -168,7 +176,12 @@ export function ProjectSelector({
                       p.id === selectedId ? "text-cyan-500" : "text-gray-400"
                     )}
                   />
-                  {p.name}
+                  <span className="truncate">
+                    {p.name}
+                    {p.responsiblePerson && (
+                      <span className="ml-1.5 text-xs text-gray-400">— {p.responsiblePerson}</span>
+                    )}
+                  </span>
                 </button>
               ))
             )}

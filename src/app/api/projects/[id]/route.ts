@@ -71,11 +71,12 @@ export async function PUT(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Update project name/date if provided
-    if (body.name !== undefined || body.date !== undefined) {
+    // Update project name/date/responsiblePerson if provided
+    if (body.name !== undefined || body.date !== undefined || body.responsiblePerson !== undefined) {
       const patch: Record<string, any> = {};
       if (body.name !== undefined) patch.name = body.name.trim();
       if (body.date !== undefined) patch.date = body.date ?? null;
+      if (body.responsiblePerson !== undefined) patch.responsiblePerson = body.responsiblePerson?.trim() || null;
       await db
         .update(projects)
         .set(patch)
@@ -133,6 +134,7 @@ export async function PUT(
         fields: {
           name: body.name !== undefined,
           date: body.date !== undefined,
+          responsiblePerson: body.responsiblePerson !== undefined,
           constants: body.constants !== undefined,
           productLines: body.productLines?.length,
         },

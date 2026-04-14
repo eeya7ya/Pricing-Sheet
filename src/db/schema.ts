@@ -46,6 +46,10 @@ export const projects = pgTable("projects", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   date: text("date"),
+  // Free-text name of the person responsible for this project — shown
+  // beside the project name so users can quickly identify ownership and
+  // avoid working on the wrong project by mistake.
+  responsiblePerson: text("responsible_person"),
   manufacturerId: integer("manufacturer_id")
     .references(() => manufacturers.id, { onDelete: "cascade" })
     .notNull(),

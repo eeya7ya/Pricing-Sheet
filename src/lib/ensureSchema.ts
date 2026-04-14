@@ -108,6 +108,13 @@ export async function ensureSchema() {
       ADD COLUMN IF NOT EXISTS profit_rate_override NUMERIC(10, 6)
     `);
 
+    // projects.responsible_person — free-text person name shown beside
+    // the project name to help users identify ownership at a glance.
+    await db.execute(sql`
+      ALTER TABLE projects
+      ADD COLUMN IF NOT EXISTS responsible_person TEXT
+    `);
+
     // user_manufacturers — per-user color/tag for each manufacturer
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS user_manufacturers (
