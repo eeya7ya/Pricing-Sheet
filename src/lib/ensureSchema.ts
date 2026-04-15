@@ -14,6 +14,97 @@ let ensuredAdmin = false;
 export async function ensureSchema() {
   if (ensuredSchema) return;
   try {
+    // ─── Base tables ────────────────────────────────────────────────
+    // These match src/db/schema.ts exactly. When pointing the app at
+    // a brand-new database (Supabase, self-hosted, local Docker…)
+    // these CREATE TABLE statements bring it from zero to a working
+    // schema. On Neon, where drizzle-kit push already created the
+    // tables, they are no-ops.
+
+    // manufacturers — must come before users/projects because of FKs.
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS manufacturers (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        color TEXT,
+        tag TEXT,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+        deleted_at TIMESTAMP,
+        created_by_user_id INTEGER
+      )
+    `);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        username TEXT NOT NULL UNIQUE,
+        password_hash TEXT NOT NULL,
+        full_name TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'user',
+        color TEXT NOT NULL DEFAULT 'cyan',
+        manufacturer_id INTEGER REFERENCES manufacturers(id) ON DELETE SET NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS projects (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        date TEXT,
+        responsible_person TEXT,
+        manufacturer_id INTEGER NOT NULL REFERENCES manufacturers(id) ON DELETE CASCADE,
+        user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+        deleted_at TIMESTAMP
+      )
+    `);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS project_constants (
+        id SERIAL PRIMARY KEY,
+        project_id INTEGER NOT NULL UNIQUE REFERENCES projects(id) ON DELETE CASCADE,
+        currency_rate NUMERIC(10, 6) NOT NULL DEFAULT 0.710000,
+        shipping_rate NUMERIC(10, 6) NOT NULL DEFAULT 0.150000,
+        customs_rate NUMERIC(10, 6) NOT NULL DEFAULT 0.120000,
+        profit_margin NUMERIC(10, 6) NOT NULL DEFAULT 0.250000,
+        tax_rate NUMERIC(10, 6) NOT NULL DEFAULT 0.160000,
+        target_currency TEXT NOT NULL DEFAULT 'JOD',
+        source_currency TEXT NOT NULL DEFAULT 'USD'
+      )
+    `);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS product_lines (
+        id SERIAL PRIMARY KEY,
+        project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+        position INTEGER NOT NULL,
+        item_model TEXT NOT NULL DEFAULT '',
+        price_usd NUMERIC(12, 4) NOT NULL DEFAULT 0,
+        quantity INTEGER NOT NULL DEFAULT 1,
+        shipping_override NUMERIC(12, 4),
+        customs_override NUMERIC(12, 4),
+        shipping_rate_override NUMERIC(10, 6),
+        customs_rate_override NUMERIC(10, 6),
+        profit_rate_override NUMERIC(10, 6),
+        UNIQUE(project_id, position)
+      )
+    `);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS account_requests (
+        id SERIAL PRIMARY KEY,
+        full_name TEXT NOT NULL,
+        email TEXT NOT NULL,
+        company TEXT NOT NULL DEFAULT '',
+        message TEXT NOT NULL DEFAULT '',
+        status TEXT NOT NULL DEFAULT 'pending',
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    // ─── Idempotent migrations for existing deployments ────────────
+
     // audit_logs — new table for tracking admin/user actions
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS audit_logs (

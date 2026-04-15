@@ -15,6 +15,7 @@ import {
 } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
 import { logAudit, getClientIp } from "@/lib/audit";
+import { ensureSchema, ensureAdminUser } from "@/lib/ensureSchema";
 
 /**
  * Full-system backup / restore.
@@ -52,6 +53,12 @@ interface SystemBackup {
 // ─── GET: export everything ─────────────────────────────────────────────────
 export async function GET(req: Request) {
   try {
+    // Make sure every table exists before we try to SELECT from it.
+    // This matters for brand-new databases (Supabase, self-hosted…)
+    // where nothing has been created yet.
+    await ensureSchema();
+    await ensureAdminUser();
+
     const me = await getCurrentUser();
     if (!me || me.role !== "admin") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -132,6 +139,12 @@ export async function GET(req: Request) {
 // ─── POST: import into a fresh database ─────────────────────────────────────
 export async function POST(req: Request) {
   try {
+    // Ensure the target database has the full schema. On a brand-new
+    // Supabase project none of the base tables exist yet, so this is
+    // what actually creates them before we attempt the restore.
+    await ensureSchema();
+    await ensureAdminUser();
+
     const me = await getCurrentUser();
     if (!me || me.role !== "admin") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -207,6 +220,19 @@ export async function POST(req: Request) {
       auditLogs: 0,
     };
 
+    // Insert in chunks so we stay under PostgreSQL's 65,535-parameter
+    // limit per statement. 500 rows × ~15 columns = ~7,500 params leaves
+    // plenty of headroom even for the widest table (product_lines).
+    const CHUNK = 500;
+    const insertChunked = async <R,>(
+      table: any,
+      rows: R[]
+    ): Promise<void> => {
+      for (let i = 0; i < rows.length; i += CHUNK) {
+        await db.insert(table).values(rows.slice(i, i + CHUNK));
+      }
+    };
+
     // Wipe the seeded admin (if present) so its id doesn't collide with
     // the imported admin row. The importing admin's session cookie will
     // stop working after this point — that's the expected tradeoff for
@@ -224,7 +250,7 @@ export async function POST(req: Request) {
         deletedAt: toDate(m.deletedAt),
         createdByUserId: m.createdByUserId ?? null,
       }));
-      await db.insert(manufacturers).values(rows);
+      await insertChunked(manufacturers, rows);
       counts.manufacturers = rows.length;
     }
 
@@ -240,7 +266,7 @@ export async function POST(req: Request) {
         manufacturerId: u.manufacturerId ?? null,
         createdAt: toDate(u.createdAt) ?? new Date(),
       }));
-      await db.insert(users).values(rows);
+      await insertChunked(users, rows);
       counts.users = rows.length;
     }
 
@@ -258,7 +284,7 @@ export async function POST(req: Request) {
         createdAt: toDate(x.createdAt) ?? new Date(),
         deletedAt: toDate(x.deletedAt),
       }));
-      await db.insert(userManufacturers).values(rows);
+      await insertChunked(userManufacturers, rows);
       counts.userManufacturers = rows.length;
     }
 
@@ -274,7 +300,7 @@ export async function POST(req: Request) {
         createdAt: toDate(p.createdAt) ?? new Date(),
         deletedAt: toDate(p.deletedAt),
       }));
-      await db.insert(projects).values(rows);
+      await insertChunked(projects, rows);
       counts.projects = rows.length;
     }
 
@@ -294,7 +320,7 @@ export async function POST(req: Request) {
         targetCurrency: c.targetCurrency ?? "JOD",
         sourceCurrency: c.sourceCurrency ?? "USD",
       }));
-      await db.insert(projectConstants).values(rows);
+      await insertChunked(projectConstants, rows);
       counts.projectConstants = rows.length;
     }
 
@@ -324,7 +350,7 @@ export async function POST(req: Request) {
             ? String(l.profitRateOverride)
             : null,
       }));
-      await db.insert(productLines).values(rows);
+      await insertChunked(productLines, rows);
       counts.productLines = rows.length;
     }
 
@@ -342,7 +368,7 @@ export async function POST(req: Request) {
         status: r.status ?? "pending",
         createdAt: toDate(r.createdAt) ?? new Date(),
       }));
-      await db.insert(accountRequests).values(rows);
+      await insertChunked(accountRequests, rows);
       counts.accountRequests = rows.length;
     }
 
@@ -360,7 +386,7 @@ export async function POST(req: Request) {
         ipAddress: l.ipAddress ?? null,
         createdAt: toDate(l.createdAt) ?? new Date(),
       }));
-      await db.insert(auditLogs).values(rows);
+      await insertChunked(auditLogs, rows);
       counts.auditLogs = rows.length;
     }
 
