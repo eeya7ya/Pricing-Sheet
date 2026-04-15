@@ -7,12 +7,30 @@ import { ensureSchema, ensureAdminUser } from "@/lib/ensureSchema";
 import { logAudit, getClientIp } from "@/lib/audit";
 
 export async function POST(req: Request) {
-  // Make sure the admin account exists and audit_logs table is ready
-  // before we try to authenticate anyone.
-  await ensureSchema();
-  await ensureAdminUser();
-
   const ip = getClientIp(req);
+
+  // Make sure the admin account exists and audit_logs table is ready
+  // before we try to authenticate anyone. If the target database is
+  // unreachable or schema setup fails (e.g. wrong Supabase credentials,
+  // pooler SSL issue, etc.) surface the real reason instead of a
+  // generic "Login failed." so the operator can fix it.
+  try {
+    await ensureSchema();
+    await ensureAdminUser();
+  } catch (error) {
+    console.error("[auth/login] schema setup failed:", error);
+    const message =
+      error instanceof Error ? error.message : String(error);
+    return NextResponse.json(
+      {
+        error:
+          "Database not ready: " +
+          message +
+          " — see /api/health for details.",
+      },
+      { status: 503 }
+    );
+  }
 
   try {
     const body = await req.json();

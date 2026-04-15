@@ -6,6 +6,28 @@ import { hashPassword } from "./auth";
 let ensuredSchema = false;
 let ensuredAdmin = false;
 
+// Last error seen by ensureSchema / ensureAdminUser so diagnostic
+// endpoints (see /api/health) can surface a real message instead of
+// the user staring at a generic "Login failed." banner.
+let lastSchemaError: string | null = null;
+let lastAdminError: string | null = null;
+
+export function getLastSchemaError(): string | null {
+  return lastSchemaError;
+}
+
+export function getLastAdminError(): string | null {
+  return lastAdminError;
+}
+
+export function isSchemaReady(): boolean {
+  return ensuredSchema;
+}
+
+export function isAdminReady(): boolean {
+  return ensuredAdmin;
+}
+
 /**
  * Idempotently creates/alters tables that are added to the schema after
  * the initial deployment. Drizzle-kit is not wired into the server runtime,
@@ -239,8 +261,11 @@ export async function ensureSchema() {
     `);
 
     ensuredSchema = true;
+    lastSchemaError = null;
   } catch (e) {
+    lastSchemaError = e instanceof Error ? e.message : String(e);
     console.error("[ensureSchema] failed:", e);
+    throw e;
   }
 }
 
@@ -269,7 +294,10 @@ export async function ensureAdminUser() {
       await db.update(users).set({ role: "admin" }).where(eq(users.id, admin.id));
     }
     ensuredAdmin = true;
+    lastAdminError = null;
   } catch (e) {
+    lastAdminError = e instanceof Error ? e.message : String(e);
     console.error("[ensureAdminUser] failed:", e);
+    throw e;
   }
 }
