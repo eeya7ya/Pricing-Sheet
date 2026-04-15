@@ -8,7 +8,7 @@ import {
   type ProductInput,
 } from "@/lib/calculations";
 import { cn } from "@/lib/utils";
-import { Copy, ClipboardPaste, Lock, Unlock, Trash2, Settings2, RotateCcw } from "lucide-react";
+import { Copy, ClipboardPaste, Lock, Unlock, Trash2, Settings2, RotateCcw, Info, X } from "lucide-react";
 
 interface Row extends ProductInput {
   id: number;
@@ -61,6 +61,28 @@ export function ProductTable({ rows, constants, onChange, targetCurrency }: Prop
   const [copiedCol, setCopiedCol] = useState<InputField | "usdTotal" | null>(null);
   const [copiedCalcCol, setCopiedCalcCol] = useState<string | null>(null);
   const [openRatesRowId, setOpenRatesRowId] = useState<number | null>(null);
+  const [notice, setNotice] = useState<{
+    kind: "info" | "warn";
+    title: string;
+    details?: string[];
+  } | null>(null);
+  const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showNotice = (n: {
+    kind: "info" | "warn";
+    title: string;
+    details?: string[];
+  }) => {
+    if (noticeTimer.current) clearTimeout(noticeTimer.current);
+    setNotice(n);
+    noticeTimer.current = setTimeout(() => setNotice(null), 6000);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (noticeTimer.current) clearTimeout(noticeTimer.current);
+    };
+  }, []);
 
   const CALC_COLUMNS = buildCalcColumns(targetCurrency);
 
@@ -114,8 +136,69 @@ export function ProductTable({ rows, constants, onChange, targetCurrency }: Prop
 
     if (values.length === 0) return;
 
-    const updated = [...rows];
+    // ── Item Model paste: append new models, skip duplicates ──
+    if (field === "itemModel") {
+      const updated = [...rows];
+      const existingKeys = new Set(
+        updated
+          .map((r) => r.itemModel.trim().toLowerCase())
+          .filter((k) => k !== "")
+      );
+      const duplicates: string[] = [];
+      const added: string[] = [];
+      const seenInPaste = new Set<string>();
+      let idSeed = Date.now();
 
+      values.forEach((val) => {
+        const key = val.toLowerCase();
+        // Skip duplicates against existing rows or previously seen in paste
+        if (existingKeys.has(key) || seenInPaste.has(key)) {
+          duplicates.push(val);
+          return;
+        }
+        seenInPaste.add(key);
+
+        // Fill first empty row if any, otherwise append
+        const emptyIdx = updated.findIndex((r) => r.itemModel.trim() === "");
+        if (emptyIdx !== -1) {
+          updated[emptyIdx] = { ...updated[emptyIdx], itemModel: val };
+        } else {
+          updated.push({
+            id: idSeed++,
+            position: updated.length + 1,
+            itemModel: val,
+            priceUsd: 0,
+            quantity: 1,
+          });
+        }
+        existingKeys.add(key);
+        added.push(val);
+      });
+
+      // Re-number positions so they stay 1..N
+      const renumbered = updated.map((r, i) => ({ ...r, position: i + 1 }));
+      onChange(renumbered);
+
+      if (duplicates.length > 0) {
+        showNotice({
+          kind: "warn",
+          title:
+            added.length > 0
+              ? `Added ${added.length} item${added.length === 1 ? "" : "s"}, skipped ${duplicates.length} duplicate${duplicates.length === 1 ? "" : "s"}`
+              : `Skipped ${duplicates.length} duplicate${duplicates.length === 1 ? "" : "s"} — all pasted items already exist`,
+          details: duplicates.map((d) => `Item model "${d}" has been repeated`),
+        });
+      } else if (added.length > 0) {
+        showNotice({
+          kind: "info",
+          title: `Added ${added.length} new item${added.length === 1 ? "" : "s"}`,
+        });
+      }
+      return;
+    }
+
+    // ── Price / Quantity paste: keep existing positional fill behaviour ──
+    const updated = [...rows];
     values.forEach((val, i) => {
       let parsed: string | number = val;
       if (field === "priceUsd") {
@@ -133,7 +216,7 @@ export function ProductTable({ rows, constants, onChange, targetCurrency }: Prop
         updated.push({
           id: Date.now() + i,
           position: updated.length + 1,
-          itemModel: field === "itemModel" ? String(parsed) : "",
+          itemModel: "",
           priceUsd: field === "priceUsd" ? Number(parsed) : 0,
           quantity: field === "quantity" ? Number(parsed) : 1,
         });
@@ -188,7 +271,66 @@ export function ProductTable({ rows, constants, onChange, targetCurrency }: Prop
   );
 
   return (
-    <div className="table-container rounded-xl border border-gray-200 bg-white">
+    <div className="relative">
+      {notice && (
+        <div
+          className={cn(
+            "pointer-events-auto absolute right-3 top-3 z-40 w-80 rounded-lg border p-3 shadow-lg",
+            notice.kind === "warn"
+              ? "border-amber-200 bg-amber-50"
+              : "border-cyan-200 bg-cyan-50"
+          )}
+          role="status"
+        >
+          <div className="flex items-start gap-2">
+            <Info
+              size={14}
+              className={cn(
+                "mt-0.5 flex-shrink-0",
+                notice.kind === "warn" ? "text-amber-600" : "text-cyan-600"
+              )}
+            />
+            <div className="flex-1 min-w-0">
+              <p
+                className={cn(
+                  "text-xs font-semibold",
+                  notice.kind === "warn" ? "text-amber-800" : "text-cyan-800"
+                )}
+              >
+                {notice.title}
+              </p>
+              {notice.details && notice.details.length > 0 && (
+                <ul
+                  className={cn(
+                    "mt-1 list-disc pl-4 text-[11px] leading-tight max-h-32 overflow-y-auto",
+                    notice.kind === "warn" ? "text-amber-700" : "text-cyan-700"
+                  )}
+                >
+                  {notice.details.map((d, idx) => (
+                    <li key={idx}>{d}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <button
+              onClick={() => {
+                if (noticeTimer.current) clearTimeout(noticeTimer.current);
+                setNotice(null);
+              }}
+              className={cn(
+                "flex-shrink-0 rounded p-0.5 transition-colors",
+                notice.kind === "warn"
+                  ? "text-amber-500 hover:bg-amber-100 hover:text-amber-700"
+                  : "text-cyan-500 hover:bg-cyan-100 hover:text-cyan-700"
+              )}
+              title="Dismiss"
+            >
+              <X size={12} />
+            </button>
+          </div>
+        </div>
+      )}
+      <div className="table-container rounded-xl border border-gray-200 bg-white">
       <table className="w-full border-collapse text-xs">
         <thead>
           <tr className="border-b border-gray-200">
@@ -542,6 +684,7 @@ export function ProductTable({ rows, constants, onChange, targetCurrency }: Prop
           </tr>
         </tfoot>
       </table>
+      </div>
     </div>
   );
 }
