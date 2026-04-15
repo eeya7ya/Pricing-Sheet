@@ -42,6 +42,7 @@ interface CreateForm {
   password: string;
   fullName: string;
   color: string;
+  role: "admin" | "user";
   manufacturerMode: "none" | "existing" | "new";
   manufacturerId: string;
   manufacturerName: string;
@@ -52,6 +53,7 @@ const EMPTY_FORM: CreateForm = {
   password: "",
   fullName: "",
   color: DEFAULT_MANUFACTURER_COLOR.key,
+  role: "user",
   manufacturerMode: "none",
   manufacturerId: "",
   manufacturerName: "",
@@ -74,6 +76,7 @@ export default function AdminPage() {
   const [editForm, setEditForm] = useState({
     fullName: "",
     color: DEFAULT_MANUFACTURER_COLOR.key,
+    role: "user" as "admin" | "user",
     manufacturerId: "" as string,
   });
   const [editSubmitting, setEditSubmitting] = useState(false);
@@ -121,6 +124,7 @@ export default function AdminPage() {
         password: form.password,
         fullName: form.fullName,
         color: form.color,
+        role: form.role,
       };
 
       if (form.manufacturerMode === "existing" && form.manufacturerId) {
@@ -169,6 +173,7 @@ export default function AdminPage() {
     setEditForm({
       fullName: u.fullName,
       color: u.color || DEFAULT_MANUFACTURER_COLOR.key,
+      role: u.role === "admin" ? "admin" : "user",
       manufacturerId: u.manufacturerId ? String(u.manufacturerId) : "",
     });
     setEditError(null);
@@ -187,6 +192,7 @@ export default function AdminPage() {
       const body: Record<string, unknown> = {
         fullName: editForm.fullName.trim(),
         color: editForm.color,
+        role: editForm.role,
       };
       body.manufacturerId = editForm.manufacturerId
         ? parseInt(editForm.manufacturerId)
@@ -525,6 +531,41 @@ export default function AdminPage() {
                 </div>
               </div>
 
+              {/* Role */}
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-600">
+                  Role
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {(["user", "admin"] as const).map((r) => (
+                    <button
+                      type="button"
+                      key={r}
+                      onClick={() => setForm((f) => ({ ...f, role: r }))}
+                      className={cn(
+                        "flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-medium transition-colors",
+                        form.role === r
+                          ? r === "admin"
+                            ? "border-purple-300 bg-purple-50 text-purple-700"
+                            : "border-cyan-300 bg-cyan-50 text-cyan-700"
+                          : "border-gray-200 bg-gray-50 text-gray-500 hover:bg-gray-100"
+                      )}
+                    >
+                      {r === "admin" ? (
+                        <ShieldCheck className="h-3.5 w-3.5" />
+                      ) : (
+                        <UserIcon className="h-3.5 w-3.5" />
+                      )}
+                      {r === "admin" ? "Admin" : "User"}
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-1 text-[11px] text-gray-400">
+                  Admins can manage users, view audit logs, and see every
+                  project. Regular users only see their own work.
+                </p>
+              </div>
+
               {/* Manufacturer (optional) */}
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-600">
@@ -679,6 +720,53 @@ export default function AdminPage() {
                     />
                   ))}
                 </div>
+              </div>
+
+              {/* Role */}
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-600">
+                  Role
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {(["user", "admin"] as const).map((r) => {
+                    const locked =
+                      editingUser.username === "admin" ||
+                      // We rely on the server to reject self-demotion, but
+                      // we also prevent toggling here for a clearer UX when
+                      // an admin opens their own row.
+                      false;
+                    return (
+                      <button
+                        type="button"
+                        key={r}
+                        disabled={locked}
+                        onClick={() =>
+                          setEditForm((f) => ({ ...f, role: r }))
+                        }
+                        className={cn(
+                          "flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60",
+                          editForm.role === r
+                            ? r === "admin"
+                              ? "border-purple-300 bg-purple-50 text-purple-700"
+                              : "border-cyan-300 bg-cyan-50 text-cyan-700"
+                            : "border-gray-200 bg-gray-50 text-gray-500 hover:bg-gray-100"
+                        )}
+                      >
+                        {r === "admin" ? (
+                          <ShieldCheck className="h-3.5 w-3.5" />
+                        ) : (
+                          <UserIcon className="h-3.5 w-3.5" />
+                        )}
+                        {r === "admin" ? "Admin" : "User"}
+                      </button>
+                    );
+                  })}
+                </div>
+                {editingUser.username === "admin" && (
+                  <p className="mt-1 text-[11px] text-gray-400">
+                    The built-in admin account cannot be demoted.
+                  </p>
+                )}
               </div>
 
               <div>

@@ -41,6 +41,7 @@ export async function POST(req: Request) {
       password,
       fullName,
       color,            // accent color key (e.g. "cyan", "purple")
+      role,             // optional: "admin" | "user" (defaults to "user")
       manufacturerId,   // optional existing manufacturer id
       manufacturerName, // optional: create a new manufacturer to assign
     } = body ?? {};
@@ -92,13 +93,17 @@ export async function POST(req: Request) {
         ? color
         : DEFAULT_MANUFACTURER_COLOR.key;
 
+    // Validate role — admins may assign either "admin" or "user"; default is "user".
+    const resolvedRole =
+      role === "admin" || role === "user" ? role : "user";
+
     const [user] = await db
       .insert(users)
       .values({
         username: normalized,
         passwordHash,
         fullName: String(fullName).trim(),
-        role: "user",
+        role: resolvedRole,
         color: resolvedColor,
         manufacturerId: mfgId,
       })
@@ -112,6 +117,7 @@ export async function POST(req: Request) {
       details: {
         username: user.username,
         fullName: user.fullName,
+        role: user.role,
         manufacturerId: mfgId,
       },
       ipAddress: getClientIp(req),
@@ -159,9 +165,36 @@ export async function PATCH(req: Request) {
     }
 
     const body = await req.json();
-    const { fullName, color, manufacturerId } = body ?? {};
+    const { fullName, color, manufacturerId, role } = body ?? {};
 
     const updates: Record<string, unknown> = {};
+
+    if (typeof role === "string") {
+      if (role !== "admin" && role !== "user") {
+        return NextResponse.json(
+          { error: "Role must be either 'admin' or 'user'." },
+          { status: 400 }
+        );
+      }
+      // Never let the built-in admin be demoted, and never let an admin
+      // demote themselves — this would leave the instance without any
+      // admin capable of re-promoting accounts.
+      if (role !== target.role) {
+        if (target.username === "admin" && role !== "admin") {
+          return NextResponse.json(
+            { error: "The built-in admin account cannot be demoted." },
+            { status: 400 }
+          );
+        }
+        if (target.id === me.id && role !== "admin") {
+          return NextResponse.json(
+            { error: "You cannot change your own role." },
+            { status: 400 }
+          );
+        }
+        updates.role = role;
+      }
+    }
 
     if (typeof fullName === "string") {
       const trimmed = fullName.trim();
