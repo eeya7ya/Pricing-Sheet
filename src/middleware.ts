@@ -12,7 +12,10 @@ const getSecret = () =>
 // Pages accessible without auth
 const PUBLIC_PAGES = new Set(["/login"]);
 // API prefixes accessible without auth
-const PUBLIC_API_PREFIXES = ["/api/auth/"];
+// /api/health is intentionally public: it reports DB/schema state so
+// an operator can diagnose why login is failing without being able to
+// log in first.
+const PUBLIC_API_PREFIXES = ["/api/auth/", "/api/health"];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
