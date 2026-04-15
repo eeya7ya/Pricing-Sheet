@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MANUFACTURER_COLORS, DEFAULT_MANUFACTURER_COLOR } from "@/lib/manufacturerColors";
+import { SystemBackup } from "@/components/SystemBackup";
 
 interface Manufacturer {
   id: number;
@@ -295,6 +296,9 @@ export default function AdminPage() {
           </div>
         </div>
       </div>
+
+      {/* Full-system backup/restore — use this before changing DATABASE_URL. */}
+      <SystemBackup />
 
       {/* Success banner */}
       {formSuccess && (
