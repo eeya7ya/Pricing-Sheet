@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { db, resolveDatabaseUrl } from "@/lib/db";
 import {
   ensureSchema,
   ensureAdminUser,
@@ -24,6 +24,7 @@ import {
 interface HealthReport {
   timestamp: string;
   databaseUrlConfigured: boolean;
+  databaseUrlEnvVar: string | null;
   databaseHost: string | null;
   driver: "neon-http" | "postgres-js" | null;
   canConnect: boolean;
@@ -38,9 +39,12 @@ interface HealthReport {
 }
 
 export async function GET() {
+  const resolved = resolveDatabaseUrl();
+
   const report: HealthReport = {
     timestamp: new Date().toISOString(),
-    databaseUrlConfigured: Boolean(process.env.DATABASE_URL),
+    databaseUrlConfigured: resolved !== null,
+    databaseUrlEnvVar: resolved?.source ?? null,
     databaseHost: null,
     driver: null,
     canConnect: false,
@@ -55,9 +59,9 @@ export async function GET() {
   };
 
   // Extract DB host (without credentials) for display.
-  if (process.env.DATABASE_URL) {
+  if (resolved) {
     try {
-      const u = new URL(process.env.DATABASE_URL);
+      const u = new URL(resolved.url);
       report.databaseHost = u.host;
       report.driver = u.host.endsWith(".neon.tech")
         ? "neon-http"

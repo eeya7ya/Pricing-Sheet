@@ -11,12 +11,34 @@ type DrizzleDb =
 let _db: DrizzleDb | null = null;
 
 /**
- * Pick the right driver based on DATABASE_URL:
+ * Names we will read a Postgres connection string from, in priority
+ * order. DATABASE_URL is the canonical one. The POSTGRES_* names are
+ * what Vercel's Supabase integration auto-populates (and POSTGRES_URL
+ * there is the pooled transaction URL, which is the one we want for
+ * serverless).
+ */
+const URL_ENV_KEYS = [
+  "DATABASE_URL",
+  "POSTGRES_URL", // Vercel+Supabase: pooled (port 6543)
+  "POSTGRES_PRISMA_URL", // Vercel+Supabase: pooled + Prisma flags (fine too)
+  "POSTGRES_URL_NON_POOLING", // Vercel+Supabase: direct (port 5432) — last resort
+] as const;
+
+export function resolveDatabaseUrl(): { url: string; source: string } | null {
+  for (const key of URL_ENV_KEYS) {
+    const v = process.env[key];
+    if (v && v.trim()) return { url: v, source: key };
+  }
+  return null;
+}
+
+/**
+ * Pick the right driver based on the connection URL:
  *  - *.neon.tech URLs → Neon's HTTP driver (best for serverless on Vercel).
  *  - Everything else (Supabase, plain Postgres, RDS, Docker…) → postgres.js
  *    over the standard PostgreSQL wire protocol.
  *
- * This lets you migrate databases just by changing DATABASE_URL — no code
+ * This lets you migrate databases just by changing the env var — no code
  * change needed.
  */
 function isNeonUrl(url: string): boolean {
@@ -30,10 +52,14 @@ function isNeonUrl(url: string): boolean {
 
 export function getDb(): DrizzleDb {
   if (!_db) {
-    const url = process.env.DATABASE_URL;
-    if (!url) {
-      throw new Error("DATABASE_URL is not set.");
+    const resolved = resolveDatabaseUrl();
+    if (!resolved) {
+      throw new Error(
+        "No database URL is set. Expected one of: " +
+          URL_ENV_KEYS.join(", ")
+      );
     }
+    const url = resolved.url;
 
     if (isNeonUrl(url)) {
       const sql = neon(url);
