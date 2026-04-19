@@ -244,19 +244,32 @@ export async function ensureSchema() {
     await db.execute(sql`
       CREATE INDEX IF NOT EXISTS user_manufacturers_user_id_idx ON user_manufacturers (user_id)
     `);
+    // manufacturers.created_by_user_id has no FK enforcement, so it can
+    // point at a user that's since been deleted. Null those out first so
+    // the backfill below can't violate user_manufacturers' FK to users.
+    await db.execute(sql`
+      UPDATE manufacturers
+      SET created_by_user_id = NULL
+      WHERE created_by_user_id IS NOT NULL
+        AND NOT EXISTS (
+          SELECT 1 FROM users WHERE users.id = manufacturers.created_by_user_id
+        )
+    `);
+
     // Migrate existing per-user color/tag data from manufacturers into the
     // new junction table. Safe to run repeatedly thanks to ON CONFLICT DO NOTHING.
     await db.execute(sql`
       INSERT INTO user_manufacturers (user_id, manufacturer_id, color, tag, created_at)
       SELECT
-        created_by_user_id,
-        id,
-        COALESCE(NULLIF(color, ''), 'cyan'),
-        COALESCE(tag, ''),
-        created_at
-      FROM manufacturers
-      WHERE created_by_user_id IS NOT NULL
-        AND deleted_at IS NULL
+        m.created_by_user_id,
+        m.id,
+        COALESCE(NULLIF(m.color, ''), 'cyan'),
+        COALESCE(m.tag, ''),
+        m.created_at
+      FROM manufacturers m
+      WHERE m.created_by_user_id IS NOT NULL
+        AND m.deleted_at IS NULL
+        AND EXISTS (SELECT 1 FROM users u WHERE u.id = m.created_by_user_id)
       ON CONFLICT (user_id, manufacturer_id) DO NOTHING
     `);
 
