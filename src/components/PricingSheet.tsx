@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Save, Plus, Trash2, Download, FileSpreadsheet, Printer, FolderMinus } from "lucide-react";
+import { Save, Plus, Trash2, Download, FileSpreadsheet, Printer, FolderMinus, FileText } from "lucide-react";
 import { ProjectSelector } from "./ProjectSelector";
 import { ConstantsPanel } from "./ConstantsPanel";
 import { ProductTable } from "./ProductTable";
 import { PricingCharts } from "./PricingCharts";
 import { type Constants, DEFAULT_CONSTANTS } from "@/lib/calculations";
 import { exportToCsv, exportToPrint } from "@/lib/export";
+import { exportProjectPdf } from "@/lib/exportPdf";
 
 interface Project {
   id: number;
@@ -296,6 +297,12 @@ export function PricingSheet({
     setShowExportMenu(false);
   }, [selectedProject, rows, constants, projectName, manufacturerName, targetCurrency, responsiblePerson]);
 
+  const handleExportPdf = useCallback(() => {
+    if (!selectedProject || rows.length === 0) return;
+    exportProjectPdf(rows, constants, projectName || selectedProject.name, manufacturerName, targetCurrency, responsiblePerson);
+    setShowExportMenu(false);
+  }, [selectedProject, rows, constants, projectName, manufacturerName, targetCurrency, responsiblePerson]);
+
   return (
     <div className="space-y-5">
       {/* Header row */}
@@ -381,7 +388,14 @@ export function PricingSheet({
                     className="fixed inset-0 z-10"
                     onClick={() => setShowExportMenu(false)}
                   />
-                  <div className="absolute right-0 z-20 mt-1 w-48 rounded-xl border border-gray-200 bg-white py-1 shadow-lg">
+                  <div className="absolute right-0 z-20 mt-1 w-52 rounded-xl border border-gray-200 bg-white py-1 shadow-lg">
+                    <button
+                      onClick={handleExportPdf}
+                      className="flex w-full items-center gap-2.5 px-4 py-2.5 text-xs text-gray-700 hover:bg-gray-50"
+                    >
+                      <FileText className="h-3.5 w-3.5 text-cyan-500" />
+                      Download as PDF
+                    </button>
                     <button
                       onClick={handleExportPrint}
                       className="flex w-full items-center gap-2.5 px-4 py-2.5 text-xs text-gray-700 hover:bg-gray-50"

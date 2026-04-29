@@ -130,7 +130,7 @@ export function exportToCsv(
 
 // ─── Chart section for print ──────────────────────────────────────────────────
 
-function buildChartsHtml(totals: TotalsRow, cur: string): string {
+function buildAnalysisHtml(totals: TotalsRow, cur: string): string {
   const fmt3 = (v: number) =>
     v.toLocaleString("en-US", { minimumFractionDigits: 3, maximumFractionDigits: 3 });
 
@@ -139,18 +139,18 @@ function buildChartsHtml(totals: TotalsRow, cur: string): string {
 
   // KPI cards
   const kpis = [
-    { label: "Total Revenue",      value: `${fmt3(rev)} ${cur}`,                      color: "#0891b2" },
-    { label: "Total Landed Cost",  value: `${fmt3(totals.landedCostTotal)} ${cur}`,    color: "#ea580c" },
-    { label: "Total Gross Profit", value: `${fmt3(totals.profitTotal)} ${cur}`,         color: "#16a34a" },
-    { label: "Net Margin",         value: `${marginPct}%`,                              color: "#7c3aed" },
+    { label: "Total Revenue",      value: `${fmt3(rev)} ${cur}`,                      color: "#0891b2", bg: "#ecfeff" },
+    { label: "Total Landed Cost",  value: `${fmt3(totals.landedCostTotal)} ${cur}`,    color: "#ea580c", bg: "#fff7ed" },
+    { label: "Total Gross Profit", value: `${fmt3(totals.profitTotal)} ${cur}`,        color: "#16a34a", bg: "#f0fdf4" },
+    { label: "Net Margin",         value: `${marginPct}%`,                             color: "#7c3aed", bg: "#f5f3ff" },
   ];
 
   const kpiHtml = kpis
     .map(
       (k) => `
-      <div style="flex:1;min-width:130px;border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px;background:#fff;">
-        <div style="font-size:9px;color:#64748b;margin-bottom:3px;text-transform:uppercase;letter-spacing:0.05em;">${k.label}</div>
-        <div style="font-size:14px;font-weight:700;color:${k.color};">${k.value}</div>
+      <div style="flex:1;min-width:160px;border:1px solid ${k.color}33;border-left:3px solid ${k.color};border-radius:8px;padding:12px 16px;background:${k.bg};">
+        <div style="font-size:9px;color:#64748b;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.08em;font-weight:600;">${k.label}</div>
+        <div style="font-size:16px;font-weight:700;color:${k.color};">${k.value}</div>
       </div>`
     )
     .join("");
@@ -174,25 +174,28 @@ function buildChartsHtml(totals: TotalsRow, cur: string): string {
   const legendItems = segments
     .map((s) => {
       const pct = rev > 0 ? ((s.value / rev) * 100).toFixed(1) : "0.0";
-      return `<span style="display:inline-flex;align-items:center;gap:4px;font-size:9px;color:#475569;margin-right:10px;">
-          <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${s.color};"></span>
+      return `<span style="display:inline-flex;align-items:center;gap:5px;font-size:9.5px;color:#475569;margin-right:14px;">
+          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${s.color};"></span>
           ${s.label} <strong style="color:#1e293b;">${pct}%</strong>
         </span>`;
     })
     .join("");
 
   return `
-  <div style="margin-bottom:16px;page-break-inside:avoid;">
-    <div style="font-size:11px;font-weight:600;color:#1e293b;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em;">Summary</div>
+  <section class="analysis" style="margin-top:18px;page-break-inside:avoid;">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+      <div style="width:3px;height:14px;background:#0891b2;border-radius:2px;"></div>
+      <h2 style="font-size:12px;font-weight:700;color:#0f172a;text-transform:uppercase;letter-spacing:0.08em;margin:0;">Result Analysis</h2>
+    </div>
     <!-- KPI row -->
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">${kpiHtml}</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;">${kpiHtml}</div>
     <!-- Composition bar -->
-    <div style="border:1px solid #e2e8f0;border-radius:8px;background:#fff;padding:10px 14px;">
-      <div style="font-size:9px;color:#64748b;margin-bottom:6px;">Revenue composition — how each cost component contributes to final price</div>
-      <div style="display:flex;width:100%;height:18px;border-radius:4px;overflow:hidden;margin-bottom:6px;">${barSegments}</div>
+    <div style="border:1px solid #e2e8f0;border-radius:8px;background:#fff;padding:12px 16px;">
+      <div style="font-size:10px;color:#475569;margin-bottom:8px;font-weight:600;">Revenue Composition <span style="color:#94a3b8;font-weight:400;">— contribution of each cost component to final price</span></div>
+      <div style="display:flex;width:100%;height:22px;border-radius:5px;overflow:hidden;margin-bottom:8px;border:1px solid #e2e8f0;">${barSegments}</div>
       <div>${legendItems}</div>
     </div>
-  </div>`;
+  </section>`;
 }
 
 // ─── Print / PDF Export ────────────────────────────────────────────────────────
@@ -209,7 +212,7 @@ export function exportToPrint(
   const activeRows = rows.filter((r) => r.priceUsd > 0 && r.itemModel);
   const calculated = rows.map((r) => ({ ...r, ...calculateRow(r, constants) }));
   const totals = calculateTotals(calculated);
-  const chartsHtml = activeRows.length > 0 ? buildChartsHtml(totals, cur) : "";
+  const analysisHtml = activeRows.length > 0 ? buildAnalysisHtml(totals, cur) : "";
 
   const fmt = (v: number) =>
     v.toLocaleString("en-US", { minimumFractionDigits: 3, maximumFractionDigits: 3 });
@@ -306,19 +309,71 @@ export function exportToPrint(
 
     /* ── Layout ── */
     .page { padding: 0; width: 100%; }
-    .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
-    .title { font-size: 16px; font-weight: 700; color: #0f172a; }
-    .subtitle { font-size: 10px; color: #64748b; margin-top: 2px; }
-    .meta { text-align: right; font-size: 9px; color: #94a3b8; line-height: 1.5; }
 
-    /* ── Settings bar ── */
-    .settings {
-      display: flex; gap: 16px; flex-wrap: wrap;
-      background: #f8fafc; border: 1px solid #e2e8f0;
-      border-radius: 6px; padding: 8px 14px; margin-bottom: 12px;
+    /* ── Report header (project + factors) ── */
+    .report-header {
+      background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%);
+      color: #fff;
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin-bottom: 14px;
+      page-break-inside: avoid;
     }
-    .setting { font-size: 9px; color: #475569; }
-    .setting strong { color: #1e293b; }
+    .report-header-top {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      gap: 16px; margin-bottom: 14px; padding-bottom: 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.18);
+    }
+    .report-header-titles { flex: 1; min-width: 0; }
+    .report-eyebrow {
+      font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.14em;
+      color: rgba(255,255,255,0.75); margin-bottom: 4px;
+    }
+    .report-manufacturer {
+      font-size: 22px; font-weight: 700; color: #fff;
+      letter-spacing: -0.01em; line-height: 1.15; margin-bottom: 6px;
+    }
+    .report-project {
+      font-size: 14px; font-weight: 600; color: #ecfeff; line-height: 1.3;
+    }
+    .report-meta {
+      text-align: right; font-size: 9.5px; color: rgba(255,255,255,0.85);
+      line-height: 1.6; flex-shrink: 0;
+    }
+    .report-meta strong { color: #fff; font-weight: 600; }
+    .report-meta-row { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
+    .report-meta-pill {
+      display: inline-flex; align-items: center; padding: 2px 8px;
+      background: rgba(255,255,255,0.18); border-radius: 999px;
+      font-size: 9px; font-weight: 600; color: #fff;
+    }
+
+    /* ── Factors grid ── */
+    .factors {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+    }
+    .factor {
+      background: rgba(255,255,255,0.13);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 6px;
+      padding: 8px 10px;
+      min-width: 0;
+    }
+    .factor-label {
+      font-size: 8px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.1em; color: rgba(255,255,255,0.78);
+      margin-bottom: 3px;
+    }
+    .factor-value {
+      font-size: 12px; font-weight: 700; color: #fff;
+      line-height: 1.15; white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis;
+    }
+    .factor-hint {
+      font-size: 7.5px; color: rgba(255,255,255,0.7); margin-top: 1px;
+    }
 
     /* ── Table ── */
     table { width: 100%; border-collapse: collapse; table-layout: fixed; }
@@ -365,26 +420,48 @@ export function exportToPrint(
   <div class="page">
     <button class="print-btn no-print" onclick="window.print()">🖨 Print / Save as PDF</button>
 
-    <div class="header">
-      <div>
-        <div class="title">${manufacturerName}</div>
-        <div class="subtitle">Project: ${projectName}${responsiblePerson ? ` &nbsp;·&nbsp; Responsible: ${responsiblePerson}` : ""} &nbsp;·&nbsp; Currency: ${cur} &nbsp;·&nbsp; Rate: 1 USD = ${constants.currencyRate} ${cur}</div>
+    <header class="report-header">
+      <div class="report-header-top">
+        <div class="report-header-titles">
+          <div class="report-eyebrow">Pricing Sheet · Manufacturer</div>
+          <div class="report-manufacturer">${manufacturerName}</div>
+          <div class="report-project">📁 ${projectName}${responsiblePerson ? ` &nbsp;·&nbsp; 👤 ${responsiblePerson}` : ""}</div>
+        </div>
+        <div class="report-meta">
+          <div class="report-meta-row"><span class="report-meta-pill">${calculated.length} product line${calculated.length !== 1 ? "s" : ""}</span></div>
+          <div style="margin-top:6px;">Exported: <strong>${new Date().toLocaleString()}</strong></div>
+          <div>Currency: <strong>${cur}</strong></div>
+        </div>
       </div>
-      <div class="meta">
-        Exported: ${new Date().toLocaleString()}<br/>
-        ${calculated.length} product line${calculated.length !== 1 ? "s" : ""}
+
+      <div class="factors">
+        <div class="factor">
+          <div class="factor-label">Currency Rate</div>
+          <div class="factor-value">1 USD = ${constants.currencyRate}</div>
+          <div class="factor-hint">${cur} per USD</div>
+        </div>
+        <div class="factor">
+          <div class="factor-label">Shipping</div>
+          <div class="factor-value">${(constants.shippingRate * 100).toFixed(2)}%</div>
+          <div class="factor-hint">of local price</div>
+        </div>
+        <div class="factor">
+          <div class="factor-label">Customs</div>
+          <div class="factor-value">${(constants.customsRate * 100).toFixed(2)}%</div>
+          <div class="factor-hint">of local + shipping</div>
+        </div>
+        <div class="factor">
+          <div class="factor-label">Profit Margin</div>
+          <div class="factor-value">${(constants.profitMargin * 100).toFixed(2)}%</div>
+          <div class="factor-hint">on landed cost</div>
+        </div>
+        <div class="factor">
+          <div class="factor-label">Tax Rate</div>
+          <div class="factor-value">${(constants.taxRate * 100).toFixed(2)}%</div>
+          <div class="factor-hint">on pre-tax price</div>
+        </div>
       </div>
-    </div>
-
-    <div class="settings">
-      <div class="setting">Currency Rate: <strong>1 USD = ${constants.currencyRate} ${cur}</strong></div>
-      <div class="setting">Shipping: <strong>${(constants.shippingRate * 100).toFixed(2)}%</strong> of local price</div>
-      <div class="setting">Customs: <strong>${(constants.customsRate * 100).toFixed(2)}%</strong> of (local + shipping)</div>
-      <div class="setting">Profit Margin: <strong>${(constants.profitMargin * 100).toFixed(2)}%</strong> on landed cost</div>
-      <div class="setting">Tax Rate: <strong>${(constants.taxRate * 100).toFixed(2)}%</strong> on pre-tax price</div>
-    </div>
-
-    ${chartsHtml}
+    </header>
 
     <table>
       <colgroup>
@@ -420,6 +497,8 @@ export function exportToPrint(
         </tr>
       </tfoot>
     </table>
+
+    ${analysisHtml}
 
     <div class="footer">Generated by Pricing Sheet &nbsp;·&nbsp; ${new Date().toLocaleDateString()} &nbsp;·&nbsp; All amounts in ${cur}</div>
   </div>

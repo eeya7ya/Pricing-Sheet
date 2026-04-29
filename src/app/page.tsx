@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Plus, Factory, BarChart3, AlertCircle, Loader2 } from "lucide-react";
 import { ManufacturerCard } from "@/components/ManufacturerCard";
+import { BulkPdfDownload } from "@/components/BulkPdfDownload";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
 
@@ -153,8 +154,9 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        {/* Add manufacturer */}
-        <div className="flex-shrink-0">
+        {/* Add manufacturer + bulk download */}
+        <div className="flex flex-shrink-0 flex-wrap items-start gap-3">
+          {!creating && items.length > 0 && <BulkPdfDownload />}
           {creating ? (
             <div className="flex flex-col gap-3 items-end">
               <div className="flex flex-wrap items-center justify-end gap-2">
