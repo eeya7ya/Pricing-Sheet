@@ -8,7 +8,7 @@ import {
   userManufacturers,
   productLines,
 } from "@/db/schema";
-import { and, asc, eq, ilike, inArray, isNull, or } from "drizzle-orm";
+import { and, asc, eq, exists, ilike, inArray, isNull, or, sql } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth";
 
 /**
@@ -16,10 +16,25 @@ import { getCurrentUser } from "@/lib/auth";
  * current user can access. Matches against project name, manufacturer
  * name and product-line item models.
  *
+ * Implementation notes
+ * --------------------
+ *  * Single round-trip: matches against product_lines are folded into
+ *    the main SELECT via EXISTS, so we no longer fetch every matching
+ *    line up front and then re-issue a project query with an IN list.
+ *  * Index-friendly: `ilike '%q%'` can use the pg_trgm GIN indexes
+ *    created by ensureSchema (projects.name, manufacturers.name,
+ *    product_lines.item_model).
+ *  * Scoped: ownership / manufacturer-allow-list filters are applied
+ *    inside the EXISTS subquery too, so the planner doesn't scan
+ *    product_lines belonging to manufacturers the user can't see.
+ *  * Annotated: a SQL boolean tells the client whether the row was
+ *    matched via a product line, without a second pass on the JS side.
+ *
  * Query params:
- *   q            — free-text search (required, min 1 char)
+ *   q              — free-text search (required, min 2 chars)
  *   manufacturerId — optional, restrict to a specific manufacturer
- *   limit        — max results (default 25)
+ *   ownerUserId    — admin-only owner scoping
+ *   limit          — max results (default 25, max 100)
  */
 export async function GET(req: Request) {
   try {
@@ -41,7 +56,10 @@ export async function GET(req: Request) {
         ? parseInt(ownerParam, 10)
         : null;
 
-    if (q.length === 0) {
+    // pg_trgm needs at least 2 chars to do anything useful and a single
+    // character expands to ~the whole table; cheap guard against the
+    // tightest case.
+    if (q.length < 2) {
       return NextResponse.json([]);
     }
 
@@ -66,17 +84,6 @@ export async function GET(req: Request) {
       }
     }
 
-    // Step 1 — find candidate project IDs whose product_lines match the
-    // query. Done as a separate query so we can union with name matches.
-    const lineMatchIds = await db
-      .select({ projectId: productLines.projectId })
-      .from(productLines)
-      .where(ilike(productLines.itemModel, like))
-      .groupBy(productLines.projectId);
-    const lineProjectIds = new Set(lineMatchIds.map((r) => r.projectId));
-
-    // Step 2 — fetch projects matching by project name OR manufacturer
-    // name OR by ID in the product-line match set.
     const baseConds = [isNull(projects.deletedAt)];
     if (user.role !== "admin") {
       baseConds.push(eq(projects.userId, user.id));
@@ -90,20 +97,30 @@ export async function GET(req: Request) {
         baseConds.push(eq(projects.manufacturerId, mfgId));
       }
     }
-    // Admins can further scope to a specific owning user (used when the
-    // manufacturer page is opened for a particular user from the admin
-    // dashboard). Non-admins are already forced to their own userId above.
     if (restrictOwnerUserId != null && user.role === "admin") {
       baseConds.push(eq(projects.userId, restrictOwnerUserId));
     }
 
-    const matchConds = [
+    // Correlated subquery — the planner can short-circuit the line scan
+    // as soon as it finds a single matching row per project, instead of
+    // materialising the entire (project_id, item_model) match set first.
+    const lineMatchExists = exists(
+      db
+        .select({ one: sql<number>`1` })
+        .from(productLines)
+        .where(
+          and(
+            eq(productLines.projectId, projects.id),
+            ilike(productLines.itemModel, like)
+          )
+        )
+    );
+
+    const matchExpr = or(
       ilike(projects.name, like),
       ilike(manufacturers.name, like),
-    ];
-    if (lineProjectIds.size > 0) {
-      matchConds.push(inArray(projects.id, Array.from(lineProjectIds)));
-    }
+      lineMatchExists
+    );
 
     const rows = await db
       .select({
@@ -117,6 +134,11 @@ export async function GET(req: Request) {
         manufacturerName: manufacturers.name,
         manufacturerColor: userManufacturers.color,
         manufacturerTag: userManufacturers.tag,
+        parentProjectId: projects.parentProjectId,
+        revisionNumber: projects.revisionNumber,
+        // Boolean computed in SQL so we don't need a second pass on the
+        // result set to flag "matched in product lines".
+        matchedInLines: sql<boolean>`(${lineMatchExists})`,
       })
       .from(projects)
       .innerJoin(manufacturers, eq(projects.manufacturerId, manufacturers.id))
@@ -128,17 +150,11 @@ export async function GET(req: Request) {
           isNull(userManufacturers.deletedAt)
         )
       )
-      .where(and(...baseConds, or(...matchConds)))
-      .orderBy(asc(manufacturers.name), asc(projects.name))
+      .where(and(...baseConds, matchExpr))
+      .orderBy(asc(manufacturers.name), asc(projects.name), asc(projects.revisionNumber))
       .limit(limit);
 
-    // Annotate with whether the match was via product-line item model.
-    const result = rows.map((r) => ({
-      ...r,
-      matchedInLines: lineProjectIds.has(r.id),
-    }));
-
-    return NextResponse.json(result);
+    return NextResponse.json(rows);
   } catch (error) {
     console.error("[projects/search]", error);
     return NextResponse.json(

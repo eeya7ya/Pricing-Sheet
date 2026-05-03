@@ -16,6 +16,8 @@ interface SearchHit {
   manufacturerColor?: string | null;
   manufacturerTag?: string | null;
   matchedInLines?: boolean;
+  parentProjectId?: number | null;
+  revisionNumber?: number | null;
 }
 
 interface Props {
@@ -203,6 +205,12 @@ export function GlobalProjectSearch({
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-medium text-gray-800">
                       {hit.name}
+                      {(hit.parentProjectId != null ||
+                        (hit.revisionNumber ?? 1) > 1) && (
+                        <span className="ml-1.5 rounded-full bg-cyan-50 px-1.5 py-0.5 text-[10px] font-semibold text-cyan-700">
+                          v{hit.revisionNumber ?? 1}
+                        </span>
+                      )}
                       {hit.responsiblePerson && (
                         <span className="ml-1.5 text-xs font-normal text-gray-400">— {hit.responsiblePerson}</span>
                       )}
