@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Save, Plus, Trash2, Download, FileSpreadsheet, Printer, FolderMinus } from "lucide-react";
+import { Save, Plus, Trash2, Download, FileSpreadsheet, Printer, FolderMinus, GitBranch } from "lucide-react";
 import { ProjectSelector } from "./ProjectSelector";
 import { ConstantsPanel } from "./ConstantsPanel";
 import { ProductTable } from "./ProductTable";
@@ -14,6 +14,8 @@ interface Project {
   name: string;
   date?: string | null;
   responsiblePerson?: string | null;
+  parentProjectId?: number | null;
+  revisionNumber?: number | null;
 }
 
 interface ProductRow {
@@ -63,6 +65,7 @@ export function PricingSheet({
   const [projectsLoading, setProjectsLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [savingRevision, setSavingRevision] = useState(false);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
 
@@ -227,6 +230,50 @@ export function PricingSheet({
     }
   }, [selectedProjectId, saving, projectName, projectDate, responsiblePerson, constants, targetCurrency, rows]);
 
+  // Save the current in-memory edits as a brand new revision linked
+  // back to the source project. The server clones the project row,
+  // constants and product lines, but we hand it the live snapshot so
+  // unsaved tweaks aren't lost.
+  const handleSaveAsRevision = useCallback(async () => {
+    if (!selectedProjectId || savingRevision) return;
+    setSavingRevision(true);
+    try {
+      const res = await fetch(`/api/projects/${selectedProjectId}/revisions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: projectName || undefined,
+          date: projectDate || null,
+          responsiblePerson: responsiblePerson || null,
+          constants: { ...constants, targetCurrency, sourceCurrency },
+          productLines: rows,
+        }),
+      });
+      if (res.ok) {
+        const created = await res.json();
+        await loadProjects();
+        setSelectedProjectId(created.id);
+        setSavedAt(new Date());
+      } else {
+        const data = await res.json().catch(() => null);
+        alert(data?.error ?? "Failed to save revision");
+      }
+    } finally {
+      setSavingRevision(false);
+    }
+  }, [
+    selectedProjectId,
+    savingRevision,
+    projectName,
+    projectDate,
+    responsiblePerson,
+    constants,
+    targetCurrency,
+    sourceCurrency,
+    rows,
+    loadProjects,
+  ]);
+
   const handleCreateProject = useCallback(async (name: string) => {
     const res = await fetch("/api/projects", {
       method: "POST",
@@ -353,6 +400,15 @@ export function PricingSheet({
               >
                 <FolderMinus className="h-3.5 w-3.5" />
                 Delete
+              </button>
+              <button
+                onClick={handleSaveAsRevision}
+                disabled={saving || savingRevision}
+                title="Save current edits as a new revision linked to this project"
+                className="flex items-center gap-1.5 rounded-lg border border-cyan-200 bg-white px-3 py-1.5 text-xs font-medium text-cyan-700 transition-colors hover:border-cyan-300 hover:bg-cyan-50 disabled:opacity-60"
+              >
+                <GitBranch className="h-3.5 w-3.5" />
+                {savingRevision ? "Saving…" : "Save as Revision"}
               </button>
               <button
                 onClick={handleSave}

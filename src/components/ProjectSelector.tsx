@@ -8,6 +8,8 @@ interface Project {
   id: number;
   name: string;
   responsiblePerson?: string | null;
+  parentProjectId?: number | null;
+  revisionNumber?: number | null;
 }
 
 interface Props {
@@ -36,6 +38,22 @@ export function ProjectSelector({
     if (!q) return projects;
     return projects.filter((p) => p.name.toLowerCase().includes(q));
   }, [projects, search]);
+
+  // A revision badge ("v2", "v3"…) is only meaningful when more than
+  // one row exists in the lineage. Compute that once so render stays cheap.
+  const lineageSize = useMemo(() => {
+    const counts = new Map<number, number>();
+    for (const p of projects) {
+      const root = p.parentProjectId ?? p.id;
+      counts.set(root, (counts.get(root) ?? 0) + 1);
+    }
+    return counts;
+  }, [projects]);
+
+  const showRevision = (p: Project) => {
+    const root = p.parentProjectId ?? p.id;
+    return (lineageSize.get(root) ?? 0) > 1 && (p.revisionNumber ?? 1) >= 1;
+  };
 
   const handleCreate = async () => {
     if (!newName.trim()) return;
@@ -66,6 +84,11 @@ export function ProjectSelector({
           {selected
             ? <>
                 {selected.name}
+                {showRevision(selected) && (
+                  <span className="ml-1.5 rounded-full bg-cyan-50 px-1.5 py-0.5 text-[10px] font-semibold text-cyan-700">
+                    v{selected.revisionNumber ?? 1}
+                  </span>
+                )}
                 {selected.responsiblePerson && (
                   <span className="ml-1.5 text-xs text-gray-400">— {selected.responsiblePerson}</span>
                 )}
@@ -178,6 +201,11 @@ export function ProjectSelector({
                   />
                   <span className="truncate">
                     {p.name}
+                    {showRevision(p) && (
+                      <span className="ml-1.5 rounded-full bg-cyan-50 px-1.5 py-0.5 text-[10px] font-semibold text-cyan-700">
+                        v{p.revisionNumber ?? 1}
+                      </span>
+                    )}
                     {p.responsiblePerson && (
                       <span className="ml-1.5 text-xs text-gray-400">— {p.responsiblePerson}</span>
                     )}

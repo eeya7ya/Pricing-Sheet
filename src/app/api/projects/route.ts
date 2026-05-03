@@ -41,7 +41,15 @@ export async function GET(req: Request) {
         }
         return and(base, eq(p.userId, user.id));
       },
-      orderBy: (p, { asc }) => [asc(p.createdAt)],
+      // Order by lineage first (root project before its revisions) and
+      // then by revisionNumber so v1, v2, v3 sit next to each other in
+      // the dropdown. Falls back to createdAt for legacy rows where
+      // revision metadata is missing.
+      orderBy: (p, { asc, sql }) => [
+        asc(sql`COALESCE(${p.parentProjectId}, ${p.id})`),
+        asc(p.revisionNumber),
+        asc(p.createdAt),
+      ],
     });
     return NextResponse.json(all);
   } catch (error) {

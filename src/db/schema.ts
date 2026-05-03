@@ -56,6 +56,13 @@ export const projects = pgTable("projects", {
   // Owner: non-admins only see their own projects; admin sees all.
   // Nullable for backwards compatibility with legacy rows.
   userId: integer("user_id").references(() => users.id, { onDelete: "set null" }),
+  // Revision lineage: when a user does "Save as Revision" we clone an
+  // existing project into a new row that points back at the original
+  // via parentProjectId. Original projects keep parentProjectId = NULL
+  // and revisionNumber = 1. Each subsequent revision increments the
+  // counter so v2, v3… are easy to recognise in the UI.
+  parentProjectId: integer("parent_project_id"),
+  revisionNumber: integer("revision_number").notNull().default(1),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   deletedAt: timestamp("deleted_at"),
 });

@@ -77,6 +77,8 @@ export async function ensureSchema() {
         responsible_person TEXT,
         manufacturer_id INTEGER NOT NULL REFERENCES manufacturers(id) ON DELETE CASCADE,
         user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        parent_project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL,
+        revision_number INTEGER NOT NULL DEFAULT 1,
         created_at TIMESTAMP NOT NULL DEFAULT NOW(),
         deleted_at TIMESTAMP
       )
@@ -226,6 +228,76 @@ export async function ensureSchema() {
     await db.execute(sql`
       ALTER TABLE projects
       ADD COLUMN IF NOT EXISTS responsible_person TEXT
+    `);
+
+    // projects.parent_project_id / revision_number — revision lineage so
+    // "Save as Revision" can clone a project into a new row without losing
+    // the link back to the original.
+    await db.execute(sql`
+      ALTER TABLE projects
+      ADD COLUMN IF NOT EXISTS parent_project_id INTEGER
+    `);
+    await db.execute(sql`
+      ALTER TABLE projects
+      ADD COLUMN IF NOT EXISTS revision_number INTEGER NOT NULL DEFAULT 1
+    `);
+    // Add the FK separately so the column-add stays idempotent on
+    // databases where the constraint already exists.
+    await db.execute(sql`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_constraint
+          WHERE conname = 'projects_parent_project_id_fkey'
+        ) THEN
+          ALTER TABLE projects
+          ADD CONSTRAINT projects_parent_project_id_fkey
+          FOREIGN KEY (parent_project_id)
+          REFERENCES projects(id) ON DELETE SET NULL;
+        END IF;
+      END $$;
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS projects_parent_project_id_idx
+      ON projects (parent_project_id)
+    `);
+
+    // ─── Search performance ────────────────────────────────────────
+    // pg_trgm + GIN indexes so case-insensitive substring search can hit
+    // an index instead of a sequential scan. The /api/projects/search
+    // endpoint matches with ILIKE '%q%' across project name, manufacturer
+    // name and product-line item models — each scales linearly with the
+    // table without these indexes.
+    //
+    // CREATE EXTENSION is wrapped so a permission failure (e.g. a managed
+    // Postgres that doesn't allow extensions) degrades gracefully: the
+    // search query still works, it just falls back to a seq-scan plan.
+    try {
+      await db.execute(sql`CREATE EXTENSION IF NOT EXISTS pg_trgm`);
+      await db.execute(sql`
+        CREATE INDEX IF NOT EXISTS projects_name_trgm_idx
+        ON projects USING GIN (name gin_trgm_ops)
+      `);
+      await db.execute(sql`
+        CREATE INDEX IF NOT EXISTS manufacturers_name_trgm_idx
+        ON manufacturers USING GIN (name gin_trgm_ops)
+      `);
+      await db.execute(sql`
+        CREATE INDEX IF NOT EXISTS product_lines_item_model_trgm_idx
+        ON product_lines USING GIN (item_model gin_trgm_ops)
+      `);
+    } catch (e) {
+      console.warn("[ensureSchema] pg_trgm setup skipped:", e);
+    }
+    // Plain btree index for filter + ordering paths used by the list and
+    // search endpoints. Cheap on small tables, free on big ones.
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS projects_manufacturer_id_idx
+      ON projects (manufacturer_id)
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS product_lines_project_id_idx
+      ON product_lines (project_id)
     `);
 
     // user_manufacturers — per-user color/tag for each manufacturer
