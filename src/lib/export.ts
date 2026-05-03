@@ -1,8 +1,17 @@
-import { calculateRow, calculateTotals, type Constants, type ProductInput, type TotalsRow } from "./calculations";
+import { calculateRow, calculateTotals, type CalculatedRow, type Constants, type ProductInput, type TotalsRow } from "./calculations";
 
 interface Row extends ProductInput {
   id: number;
   position: number;
+}
+
+function escapeXml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 function N(v: number, decimals = 3) {
@@ -130,7 +139,98 @@ export function exportToCsv(
 
 // ─── Chart section for print ──────────────────────────────────────────────────
 
-function buildChartsHtml(totals: TotalsRow, cur: string): string {
+function buildWaterfallSvg(totals: TotalsRow, cur: string): string {
+  const fmtShort = (v: number) =>
+    v >= 1000 ? (v / 1000).toFixed(1) + "k" : v.toFixed(0);
+
+  const steps = [
+    { name: `${cur} Base`,    base: 0,                                            value: totals.jodPriceTotal,   color: "#d97706", milestone: false },
+    { name: "+ Shipping",     base: totals.jodPriceTotal,                          value: totals.shippingTotal,   color: "#2563eb", milestone: false },
+    { name: "+ Customs",      base: totals.jodPriceTotal + totals.shippingTotal,   value: totals.customsTotal,    color: "#7c3aed", milestone: false },
+    { name: "Landed Cost",    base: 0,                                            value: totals.landedCostTotal, color: "#ea580c", milestone: true  },
+    { name: "+ Profit",       base: totals.landedCostTotal,                        value: totals.profitTotal,     color: "#16a34a", milestone: false },
+    { name: "+ Tax",          base: totals.preTaxPriceTotal,                       value: totals.taxTotal,        color: "#e11d48", milestone: false },
+    { name: "Final Revenue",  base: 0,                                            value: totals.finalPriceTotal, color: "#0891b2", milestone: true  },
+  ];
+
+  const W = 760, H = 220, padL = 32, padR = 12, padT = 24, padB = 36;
+  const innerW = W - padL - padR;
+  const innerH = H - padT - padB;
+  const max = Math.max(...steps.map((s) => s.base + s.value), 1);
+
+  const slot = innerW / steps.length;
+  const barW = slot * 0.62;
+
+  const bars = steps
+    .map((s, i) => {
+      const x = padL + i * slot + (slot - barW) / 2;
+      const h = (s.value / max) * innerH;
+      const baseH = (s.base / max) * innerH;
+      const y = padT + innerH - h - baseH;
+      const valLabel = `${fmtShort(s.value)}`;
+      const stroke = s.milestone ? `stroke="${s.color}" stroke-width="1.5"` : `stroke="none"`;
+      return `
+        <g>
+          <rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(h, 1).toFixed(1)}" fill="${s.color}" rx="3" ${stroke} opacity="${s.milestone ? 1 : 0.9}"/>
+          <text x="${(x + barW / 2).toFixed(1)}" y="${(y - 4).toFixed(1)}" font-size="9" fill="#475569" text-anchor="middle" font-weight="600">${valLabel}</text>
+          <text x="${(x + barW / 2).toFixed(1)}" y="${(H - 14).toFixed(1)}" font-size="8.5" fill="#64748b" text-anchor="middle">${escapeXml(s.name)}</text>
+        </g>`;
+    })
+    .join("");
+
+  // Y axis baseline
+  const baseLineY = padT + innerH;
+
+  return `
+    <svg width="100%" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" style="display:block;">
+      <line x1="${padL}" y1="${baseLineY}" x2="${W - padR}" y2="${baseLineY}" stroke="#cbd5e1" stroke-width="1"/>
+      <line x1="${padL}" y1="${baseLineY}" x2="${padL}" y2="${padT}" stroke="#e2e8f0" stroke-width="1"/>
+      ${bars}
+    </svg>`;
+}
+
+function buildProductBarsSvg(
+  rows: Array<{ name: string; revenue: number; landed: number; pct: number }>
+): string {
+  const fmtShort = (v: number) =>
+    v >= 1000 ? (v / 1000).toFixed(1) + "k" : v.toFixed(0);
+
+  const W = 760;
+  const rowH = 22;
+  const padT = 8;
+  const padB = 8;
+  const labelW = 150;
+  const valueLabelReserve = 80;
+  const innerW = W - labelW - valueLabelReserve;
+  const H = padT + padB + rows.length * rowH;
+  const max = Math.max(...rows.map((r) => r.revenue), 1);
+
+  const bars = rows
+    .map((r, i) => {
+      const y = padT + i * rowH;
+      const revW = (r.revenue / max) * innerW;
+      const landedW = (r.landed / max) * innerW;
+      return `
+        <g>
+          <text x="${labelW - 6}" y="${y + rowH / 2 + 3}" font-size="9" fill="#475569" text-anchor="end">${escapeXml(r.name)}</text>
+          <rect x="${labelW}" y="${y + 4}" width="${landedW.toFixed(1)}" height="${rowH - 10}" fill="#ea580c" opacity="0.3" rx="2"/>
+          <rect x="${labelW}" y="${y + 4}" width="${revW.toFixed(1)}" height="${rowH - 10}" fill="#0891b2" rx="2"/>
+          <text x="${labelW + revW + 6}" y="${y + rowH / 2 + 3}" font-size="9" fill="#1e293b" font-weight="600">${fmtShort(r.revenue)} (${r.pct}%)</text>
+        </g>`;
+    })
+    .join("");
+
+  return `
+    <svg width="100%" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" style="display:block;">
+      ${bars}
+    </svg>`;
+}
+
+function buildChartsHtml(
+  totals: TotalsRow,
+  cur: string,
+  calculated: Array<CalculatedRow & { itemModel: string; quantity: number; position: number }>
+): string {
   const fmt3 = (v: number) =>
     v.toLocaleString("en-US", { minimumFractionDigits: 3, maximumFractionDigits: 3 });
 
@@ -181,17 +281,47 @@ function buildChartsHtml(totals: TotalsRow, cur: string): string {
     })
     .join("");
 
+  // Per-product contribution data (sorted by revenue, top down)
+  const contribution = [...calculated]
+    .filter((r) => r.priceUsd > 0 && r.itemModel)
+    .sort((a, b) => b.finalPriceTotal - a.finalPriceTotal)
+    .map((r) => ({
+      name: r.itemModel.length > 26 ? r.itemModel.slice(0, 26) + "…" : r.itemModel,
+      revenue: r.finalPriceTotal,
+      landed: r.landedCostTotal,
+      pct: rev > 0 ? parseFloat(((r.finalPriceTotal / rev) * 100).toFixed(1)) : 0,
+    }));
+
+  const waterfallSvg = buildWaterfallSvg(totals, cur);
+  const productBarsSvg = contribution.length > 0 ? buildProductBarsSvg(contribution) : "";
+
   return `
   <div class="analysis-section" style="margin-top:18px;page-break-inside:avoid;">
     <div class="section-title">Result Analysis</div>
     <!-- KPI row -->
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">${kpiHtml}</div>
     <!-- Composition bar -->
-    <div style="border:1px solid #e2e8f0;border-radius:8px;background:#fff;padding:10px 14px;">
-      <div style="font-size:9px;color:#64748b;margin-bottom:6px;">Revenue composition — how each cost component contributes to final price</div>
+    <div style="border:1px solid #e2e8f0;border-radius:8px;background:#fff;padding:10px 14px;margin-bottom:14px;">
+      <div style="font-size:10px;font-weight:600;color:#1e293b;margin-bottom:6px;">Revenue Composition</div>
+      <div style="font-size:8.5px;color:#64748b;margin-bottom:6px;">How each cost component contributes to the final selling price.</div>
       <div style="display:flex;width:100%;height:18px;border-radius:4px;overflow:hidden;margin-bottom:6px;">${barSegments}</div>
       <div>${legendItems}</div>
     </div>
+    <!-- Waterfall (cost buildup) -->
+    <div style="border:1px solid #e2e8f0;border-radius:8px;background:#fff;padding:10px 14px;margin-bottom:14px;page-break-inside:avoid;">
+      <div style="font-size:10px;font-weight:600;color:#1e293b;margin-bottom:4px;">Cost Buildup — Waterfall</div>
+      <div style="font-size:8.5px;color:#64748b;margin-bottom:6px;">Step-by-step accumulation from base price to final revenue (${cur}).</div>
+      ${waterfallSvg}
+    </div>
+    ${
+      productBarsSvg
+        ? `<div style="border:1px solid #e2e8f0;border-radius:8px;background:#fff;padding:10px 14px;page-break-inside:avoid;">
+            <div style="font-size:10px;font-weight:600;color:#1e293b;margin-bottom:4px;">Revenue by Product</div>
+            <div style="font-size:8.5px;color:#64748b;margin-bottom:6px;">Final selling price × quantity. Faded orange shows landed cost behind each bar.</div>
+            ${productBarsSvg}
+          </div>`
+        : ""
+    }
   </div>`;
 }
 
@@ -209,7 +339,7 @@ export function exportToPrint(
   const activeRows = rows.filter((r) => r.priceUsd > 0 && r.itemModel);
   const calculated = rows.map((r) => ({ ...r, ...calculateRow(r, constants) }));
   const totals = calculateTotals(calculated);
-  const chartsHtml = activeRows.length > 0 ? buildChartsHtml(totals, cur) : "";
+  const chartsHtml = activeRows.length > 0 ? buildChartsHtml(totals, cur, calculated) : "";
 
   const fmt = (v: number) =>
     v.toLocaleString("en-US", { minimumFractionDigits: 3, maximumFractionDigits: 3 });

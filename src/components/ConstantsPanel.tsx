@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { type Constants } from "@/lib/calculations";
 import { cn } from "@/lib/utils";
 import { RefreshCw } from "lucide-react";
@@ -37,6 +37,67 @@ interface ConstantField {
   description: string;
   isRate: boolean;
   color: string;
+}
+
+function formatConstant(field: ConstantField, v: number): string {
+  return field.isRate ? (v * 100).toFixed(2) : v.toFixed(4);
+}
+
+// A controlled numeric input with its own string buffer. The buffer lets the
+// user freely clear the field and retype (Delete + new digits) without the
+// parent's formatted value snapping back mid-edit. Numeric updates are pushed
+// to the parent on every valid keystroke so calculations stay live; the input
+// is only reformatted to canonical form on blur or when an external change
+// arrives while the field isn't focused.
+function ConstantInput({
+  field,
+  value,
+  onCommit,
+}: {
+  field: ConstantField;
+  value: number;
+  onCommit: (next: number) => void;
+}) {
+  const [text, setText] = useState(() => formatConstant(field, value));
+  const [focused, setFocused] = useState(false);
+
+  // Sync down external changes (project load, live rate fetch, etc.) — but
+  // never while the user is mid-edit.
+  useEffect(() => {
+    if (!focused) setText(formatConstant(field, value));
+  }, [value, focused, field]);
+
+  const handleChange = (raw: string) => {
+    setText(raw);
+    if (raw.trim() === "") return;
+    const parsed = parseFloat(raw);
+    if (isNaN(parsed)) return;
+    onCommit(field.isRate ? parsed / 100 : parsed);
+  };
+
+  return (
+    <input
+      type="number"
+      step="any"
+      min="0"
+      value={text}
+      onChange={(e) => handleChange(e.target.value)}
+      onFocus={(e) => {
+        setFocused(true);
+        e.currentTarget.select();
+      }}
+      onBlur={() => {
+        setFocused(false);
+        setText(formatConstant(field, value));
+      }}
+      className={cn(
+        "w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pl-3 pr-7 text-sm font-mono font-medium",
+        "focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400/30",
+        "transition-colors",
+        field.color
+      )}
+    />
+  );
 }
 
 function buildConstantFields(sourceCurrency: string, targetCurrency: string): ConstantField[] {
@@ -102,21 +163,6 @@ export function ConstantsPanel({
   const [rateError, setRateError] = useState<string | null>(null);
 
   const CONSTANT_FIELDS = buildConstantFields(sourceCurrency, targetCurrency);
-
-  const handleChange = (key: keyof Constants, raw: string) => {
-    const parsed = parseFloat(raw);
-    if (!isNaN(parsed)) {
-      const value = CONSTANT_FIELDS.find((f) => f.key === key)?.isRate
-        ? parsed / 100
-        : parsed;
-      onChange({ ...constants, [key]: value });
-    }
-  };
-
-  const displayValue = (field: ConstantField) => {
-    const v = constants[field.key];
-    return field.isRate ? (v * 100).toFixed(2) : v.toFixed(4);
-  };
 
   const handleCurrencySelect = (code: string) => {
     const currency = CURRENCIES.find((c) => c.code === code);
@@ -241,18 +287,10 @@ export function ConstantsPanel({
               <span className="ml-1 text-gray-400">({field.description})</span>
             </label>
             <div className="relative">
-              <input
-                type="number"
-                step="any"
-                min="0"
-                value={displayValue(field)}
-                onChange={(e) => handleChange(field.key, e.target.value)}
-                className={cn(
-                  "w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pl-3 pr-7 text-sm font-mono font-medium",
-                  "focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400/30",
-                  "transition-colors",
-                  field.color
-                )}
+              <ConstantInput
+                field={field}
+                value={constants[field.key]}
+                onCommit={(next) => onChange({ ...constants, [field.key]: next })}
               />
               <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-gray-400">
                 {field.isRate ? "%" : "×"}
