@@ -182,8 +182,8 @@ function buildChartsHtml(totals: TotalsRow, cur: string): string {
     .join("");
 
   return `
-  <div style="margin-bottom:16px;page-break-inside:avoid;">
-    <div style="font-size:11px;font-weight:600;color:#1e293b;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em;">Summary</div>
+  <div class="analysis-section" style="margin-top:18px;page-break-inside:avoid;">
+    <div class="section-title">Result Analysis</div>
     <!-- KPI row -->
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">${kpiHtml}</div>
     <!-- Composition bar -->
@@ -306,19 +306,50 @@ export function exportToPrint(
 
     /* ── Layout ── */
     .page { padding: 0; width: 100%; }
-    .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
-    .title { font-size: 16px; font-weight: 700; color: #0f172a; }
-    .subtitle { font-size: 10px; color: #64748b; margin-top: 2px; }
-    .meta { text-align: right; font-size: 9px; color: #94a3b8; line-height: 1.5; }
+    .doc-title { font-size: 18px; font-weight: 700; color: #0f172a; }
+    .doc-meta { font-size: 9px; color: #94a3b8; line-height: 1.5; text-align: right; }
+    .doc-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 2px solid #0891b2; }
 
-    /* ── Settings bar ── */
-    .settings {
-      display: flex; gap: 16px; flex-wrap: wrap;
-      background: #f8fafc; border: 1px solid #e2e8f0;
-      border-radius: 6px; padding: 8px 14px; margin-bottom: 12px;
+    /* ── Section titles ── */
+    .section-title {
+      font-size: 10px; font-weight: 700; color: #0f172a;
+      text-transform: uppercase; letter-spacing: 0.08em;
+      margin-bottom: 8px; padding-bottom: 4px;
+      border-bottom: 1px solid #cbd5e1;
     }
-    .setting { font-size: 9px; color: #475569; }
-    .setting strong { color: #1e293b; }
+
+    /* ── Inputs area (above table) ── */
+    .inputs-area { margin-bottom: 14px; }
+    .input-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .input-card {
+      border: 1px solid #e2e8f0; border-radius: 6px;
+      background: #f8fafc; padding: 8px 12px;
+    }
+    .input-label {
+      font-size: 8px; color: #64748b; text-transform: uppercase;
+      letter-spacing: 0.06em; margin-bottom: 3px; font-weight: 600;
+    }
+    .input-value { font-size: 11px; font-weight: 700; color: #0f172a; }
+    .factor-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+    }
+    .factor-card {
+      border: 1px solid #e2e8f0; border-radius: 6px;
+      background: #fff; padding: 8px 12px; text-align: center;
+    }
+    .factor-label {
+      font-size: 8px; color: #64748b; text-transform: uppercase;
+      letter-spacing: 0.06em; margin-bottom: 4px; font-weight: 600;
+    }
+    .factor-value { font-size: 13px; font-weight: 700; color: #0891b2; }
+    .factor-note { font-size: 7.5px; color: #94a3b8; margin-top: 2px; }
 
     /* ── Table ── */
     table { width: 100%; border-collapse: collapse; table-layout: fixed; }
@@ -365,27 +396,68 @@ export function exportToPrint(
   <div class="page">
     <button class="print-btn no-print" onclick="window.print()">🖨 Print / Save as PDF</button>
 
-    <div class="header">
+    <div class="doc-head">
       <div>
-        <div class="title">${manufacturerName}</div>
-        <div class="subtitle">Project: ${projectName}${responsiblePerson ? ` &nbsp;·&nbsp; Responsible: ${responsiblePerson}` : ""} &nbsp;·&nbsp; Currency: ${cur} &nbsp;·&nbsp; Rate: 1 USD = ${constants.currencyRate} ${cur}</div>
+        <div class="doc-title">${manufacturerName}</div>
       </div>
-      <div class="meta">
+      <div class="doc-meta">
         Exported: ${new Date().toLocaleString()}<br/>
         ${calculated.length} product line${calculated.length !== 1 ? "s" : ""}
       </div>
     </div>
 
-    <div class="settings">
-      <div class="setting">Currency Rate: <strong>1 USD = ${constants.currencyRate} ${cur}</strong></div>
-      <div class="setting">Shipping: <strong>${(constants.shippingRate * 100).toFixed(2)}%</strong> of local price</div>
-      <div class="setting">Customs: <strong>${(constants.customsRate * 100).toFixed(2)}%</strong> of (local + shipping)</div>
-      <div class="setting">Profit Margin: <strong>${(constants.profitMargin * 100).toFixed(2)}%</strong> on landed cost</div>
-      <div class="setting">Tax Rate: <strong>${(constants.taxRate * 100).toFixed(2)}%</strong> on pre-tax price</div>
+    <div class="inputs-area">
+      <div class="section-title">Project Information</div>
+      <div class="input-grid">
+        <div class="input-card">
+          <div class="input-label">Project</div>
+          <div class="input-value">${projectName || "—"}</div>
+        </div>
+        <div class="input-card">
+          <div class="input-label">Manufacturer</div>
+          <div class="input-value">${manufacturerName}</div>
+        </div>
+        <div class="input-card">
+          <div class="input-label">Responsible</div>
+          <div class="input-value">${responsiblePerson || "—"}</div>
+        </div>
+        <div class="input-card">
+          <div class="input-label">Target Currency</div>
+          <div class="input-value">${cur}</div>
+        </div>
+      </div>
+
+      <div class="section-title">Fixed Factors</div>
+      <div class="factor-grid">
+        <div class="factor-card">
+          <div class="factor-label">Currency Rate</div>
+          <div class="factor-value">${constants.currencyRate}</div>
+          <div class="factor-note">1 USD → ${cur}</div>
+        </div>
+        <div class="factor-card">
+          <div class="factor-label">Shipping</div>
+          <div class="factor-value">${(constants.shippingRate * 100).toFixed(2)}%</div>
+          <div class="factor-note">of local price</div>
+        </div>
+        <div class="factor-card">
+          <div class="factor-label">Customs</div>
+          <div class="factor-value">${(constants.customsRate * 100).toFixed(2)}%</div>
+          <div class="factor-note">of (local + shipping)</div>
+        </div>
+        <div class="factor-card">
+          <div class="factor-label">Profit Margin</div>
+          <div class="factor-value">${(constants.profitMargin * 100).toFixed(2)}%</div>
+          <div class="factor-note">on landed cost</div>
+        </div>
+        <div class="factor-card">
+          <div class="factor-label">Tax Rate</div>
+          <div class="factor-value">${(constants.taxRate * 100).toFixed(2)}%</div>
+          <div class="factor-note">on pre-tax price</div>
+        </div>
+      </div>
     </div>
 
-    ${chartsHtml}
-
+    <div class="section-title">Product Lines</div>
     <table>
       <colgroup>
         <col style="width:22px">
@@ -420,6 +492,8 @@ export function exportToPrint(
         </tr>
       </tfoot>
     </table>
+
+    ${chartsHtml}
 
     <div class="footer">Generated by Pricing Sheet &nbsp;·&nbsp; ${new Date().toLocaleDateString()} &nbsp;·&nbsp; All amounts in ${cur}</div>
   </div>
